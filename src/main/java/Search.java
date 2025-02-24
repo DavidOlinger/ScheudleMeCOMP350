@@ -11,6 +11,7 @@ public class Search {
 
     public void SearchQ(String query) {
         // Perform search operation
+        //
     }
 
     public void ModifyTimeFilter() {
