@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import com.fasterxml.jackson.core.*;
 
 public class Course extends Event {
     public int refNumber;
