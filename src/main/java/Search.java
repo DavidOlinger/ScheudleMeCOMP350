@@ -9,9 +9,44 @@ public class Search {
     public ArrayList<Course> filteredResultsList;
     private Set<Professor> professors;
 
+
+    public Search() {
+        this.resultsList = new ArrayList<>();
+        this.filteredResultsList = new ArrayList<>();
+    }
+
+
     public void SearchQ(String query) {
         // Perform search operation
+        this.query = query;
+        filteredResultsList.clear();
+
+        // Loop through all available courses
+        for (Course course : resultsList) {
+            if (Integer.toString(course.refNumber).equals(query)) {
+                filteredResultsList.add(course);
+            }
+            else if(course.description.toLowerCase().contains(query.toLowerCase())){
+                filteredResultsList.add(course);
+            }
+        }
+
+        if (filteredResultsList.isEmpty()) {
+            System.out.println("No courses found matching: " + query);
+        } else {
+            System.out.println("Courses matching '" + query + "':");
+            for (Course course : filteredResultsList) {
+                System.out.println("- " + course.refNumber + ": " + course.description);
+            }
+        }
+
+
     }
+
+
+
+
+
 
     public void ModifyTimeFilter() {
         // Modify search time filter
