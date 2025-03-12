@@ -36,7 +36,8 @@ public class Search {
         } else {
             System.out.println("Courses matching '" + query + "':");
             for (Course course : filteredResultsList) {
-                System.out.println("- " + course.refNumber + ": " + course.description);
+                String professorName = (course.professor != null) ? course.professor.name : "Unknown";
+                System.out.println("- " + course.refNumber + ": " + course.description + " (Professor: " + professorName + ")");
             }
         }
 
