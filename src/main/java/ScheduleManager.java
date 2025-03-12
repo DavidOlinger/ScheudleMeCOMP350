@@ -13,7 +13,27 @@ public class ScheduleManager {
 
 
     public void LoadSchedule(String name) {
-        // Load a schedule by name
+
+        if (user == null) {
+            System.out.println("Error: No user is logged in.");
+            return;
+        }
+
+        // Search for the schedule in user's saved schedules
+        for (Schedule schedule : user.mySchedules) {
+            if (schedule.name.equals(name)) {
+                currentSchedule = schedule;
+                System.out.println("Loaded schedule: " + name);
+
+                // once someone adds the schedule thing, we could print out the schedule stuff
+                return;
+
+            }
+        }
+
+        // Failed to find
+        System.out.println("Error: No saved schedule found with name '" + name + "'.");
+
     }
 
     private void GetProfessorRatings() {
