@@ -7,9 +7,14 @@ public class ScheduleManager {
     public User user;
     private Stack<Schedule> editHistory;
     private Stack<Schedule> undoneHistory;
-    public Schedule currentSchedule;
+
+    public static Schedule currentSchedule;
     public Search currentSearch;
 
+
+    public static Schedule getCurrentSchedule() {
+        return currentSchedule;
+    }
 
 
     public void LoadSchedule(String name) {
