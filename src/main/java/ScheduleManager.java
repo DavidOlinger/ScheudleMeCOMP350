@@ -1,3 +1,4 @@
+import java.util.HashSet;
 import java.util.Stack;
 
 
@@ -17,7 +18,7 @@ public class ScheduleManager {
     }
 
 
-    public void LoadSchedule(String name) {
+    public void loadSchedule(String name) {
 
         if (user == null) {
             System.out.println("Error: No user is logged in.");
@@ -28,11 +29,9 @@ public class ScheduleManager {
         for (Schedule schedule : user.mySchedules) {
             if (schedule.name.equals(name)) {
                 currentSchedule = schedule;
-                System.out.println("Loaded schedule: " + name);
-
-                // once someone adds the schedule thing, we could print out the schedule stuff
+                System.out.println("Loaded schedule. ");
+                System.out.println(currentSchedule); //uses new toString
                 return;
-
             }
         }
 
@@ -41,37 +40,49 @@ public class ScheduleManager {
 
     }
 
-    private void GetProfessorRatings() {
+    private void getProfessorRatings() {
         // Retrieve and store professor ratings
     }
 
-    private void RetrieveCourseList() {
+    private void retrieveCourseList() {
         // Fetch and store course list
     }
 
-    public boolean CreateEvent(Event e) {
+    public boolean createEvent(Event e) {
         // Attempt to create an event in the current schedule
         return true; // Placeholder
     }
 
-    public boolean AddCourse(Course c) {
-        // Add a course to the current schedule
+    // Add a course to the current schedule
+    public boolean addCourse(Course c) {
+
+
+
         return true; // Placeholder
     }
 
-    public void NewSchedule(String name) {
-        // Create a new schedule with the given name
+    public void newSchedule(String name) {
+        Schedule newSchedule = new Schedule();
+        newSchedule.name = name;
+        newSchedule.events = new HashSet<>();  // Assuming you want to use HashSet for events
+
+        currentSchedule = newSchedule;
+
+        // If you want to add it to the user's schedules
+        if (user != null) {
+            user.mySchedules.add(newSchedule);
+        }
     }
 
-    public void RemCourse(Course c) {
+    public void remCourse(Course c) {
         // Remove a course from the schedule
     }
 
-    public void Redo() {
+    public void redo() {
         // Redo last undone action
     }
 
-    public void Undo() {
+    public void undo() {
         // Undo last action
     }
 
