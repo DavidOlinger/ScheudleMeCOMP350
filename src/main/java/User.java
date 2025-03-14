@@ -7,6 +7,26 @@ public class User {
     public int year;
     public ArrayList<Schedule> mySchedules;
 
+    public User() {
+        // Create a placeholder user with default values
+        this.name = "Default User";
+        this.idNumber = 12345;
+        this.major = "Undeclared";
+        this.year = 1;
+        this.mySchedules = new ArrayList<>();
+    }
+
+    @Override
+    public String toString(){
+        StringBuilder sb = new StringBuilder();
+        sb.append("User info:\n");
+        sb.append("Name: ").append(name).append("\n");
+        sb.append("ID: ").append(idNumber).append("\n");
+        sb.append("Major: ").append(major).append("\n");
+        sb.append("Year: ").append(year).append("\n");
+        return sb.toString();
+    }
+
     public void SaveSchedule(Schedule s) {
         // Save a schedule
     }
@@ -15,7 +35,18 @@ public class User {
         // Delete a schedule
     }
 
-    public void RenameSchedule(Schedule s, String name) {
-        // Rename a schedule
+    //rename a schedule in the list myschedules
+    public void RenameSchedule(String oldName, String newName) {
+        //find the schedule in the list
+        for (Schedule schedule : mySchedules) {
+            if (schedule.name.equals(oldName)) {
+                schedule.name = newName;
+                System.out.println("Schedule name changed to " + newName);
+                return;
+            }
+        }
+        //if the schedule is not found, print an error message
+        System.out.println("Error: Schedule not found.");
+
     }
 }
