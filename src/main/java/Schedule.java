@@ -8,8 +8,16 @@ public class Schedule {
     public Set<Event> events;
 
 
-    public void CheckConflicts(Event e) {
-        // Check for conflicts with the given event
+    public boolean CheckConflicts(Event e) {
+        // Check if the event conflicts with any other event in the schedule (does not check for multiple conflicts)
+        for (Event event : this.events) {
+            if (event.ConflictsWith(e)) {
+                System.out.println("Event " + e.name + " conflicts with event " + event.name); //verbose
+                return true;
+            }
+        }
+        System.out.println("Event " + e.name + " does not conflict with any other events"); //verbose
+        return false;
     }
 
 
@@ -26,8 +34,7 @@ public class Schedule {
 
         // Iterate through events in the schedule
         for (Event e : this.events) {
-            if (e instanceof Course) { // Only copy ref numbers from Course objects
-                Course course = (Course) e;
+            if (e instanceof Course course) { // Only copy ref numbers from Course objects
                 refNumbers.add(String.valueOf(course.refNumber)); // Convert int to string
             }
         }

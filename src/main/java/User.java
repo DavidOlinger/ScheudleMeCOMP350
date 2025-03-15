@@ -7,14 +7,25 @@ public class User {
     public int year;
     public ArrayList<Schedule> mySchedules;
 
-    public User() {
-        // Create a placeholder user with default values
-        this.name = "Default User";
+
+    public User(String name) {
+        // Create a user with dummy data
+        this.name = name;
         this.idNumber = 12345;
         this.major = "Undeclared";
         this.year = 1;
         this.mySchedules = new ArrayList<>();
     }
+
+    public User(String name, int idNumber, String major, int year) {
+        // Create a user with custom values
+        this.name = name;
+        this.idNumber = idNumber;
+        this.major = major;
+        this.year = year;
+        this.mySchedules = new ArrayList<>();
+    }
+
 
     @Override
     public String toString(){

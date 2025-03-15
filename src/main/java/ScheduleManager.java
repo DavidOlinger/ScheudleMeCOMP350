@@ -48,18 +48,16 @@ public class ScheduleManager {
         // Fetch and store course list
     }
 
-    public boolean createEvent(Event e) {
-        // Attempt to create an event in the current schedule
-        return true; // Placeholder
+    public boolean addEvent(Event e) {
+        if (currentSchedule.CheckConflicts(e)) {
+            System.out.println("Error: Event conflicts with existing events in the schedule.");
+            return true;
+        } else {
+            currentSchedule.events.add(e);
+            return false;
+        }
     }
 
-    // Add a course to the current schedule
-    public boolean addCourse(Course c) {
-
-
-
-        return true; // Placeholder
-    }
 
     public void newSchedule(String name) {
         Schedule newSchedule = new Schedule();
@@ -74,8 +72,10 @@ public class ScheduleManager {
         }
     }
 
-    public void remCourse(Course c) {
-        // Remove a course from the schedule
+    public void remEvent(Event e) {
+        // Remove a course from the current schedule
+        currentSchedule.events.remove(e);
+        System.out.println(e.name + " was removed from schedule.");
     }
 
     public void redo() {
