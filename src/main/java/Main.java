@@ -7,7 +7,7 @@ public class Main {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         ScheduleManager scheduleManager = new ScheduleManager();
-        scheduleManager.user = new User();
+        scheduleManager.user = new User("Bob");
         System.out.println(scheduleManager.user);
         System.out.println("\n\n");
         System.out.println("Welcome to Course Scheduler!");
