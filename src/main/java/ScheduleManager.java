@@ -1,3 +1,9 @@
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import java.io.FileReader;
+import java.io.IOException;
+import java.lang.reflect.Type;
+
 import java.util.HashSet;
 import java.util.Stack;
 
@@ -18,27 +24,36 @@ public class ScheduleManager {
     }
 
 
-    public void loadSchedule(String name) {
 
-        if (user == null) {
-            System.out.println("Error: No user is logged in.");
+
+
+    /**
+     * Loads a schedule from a file and sets it as the current schedule.
+     *
+     * @param scheduleName The name of the schedule to load.
+     */
+    public void loadSchedule(String scheduleName) {
+        // Check if the schedule exists in the user's list
+        String filePath = "schedules/" + scheduleName + ".json";
+        if (!user.mySchedules.contains(filePath)) {
+            System.out.println("Error: Schedule not found in user's list.");
             return;
         }
 
-        // Search for the schedule in user's saved schedules
-        for (Schedule schedule : user.mySchedules) {
-            if (schedule.name.equals(name)) {
-                currentSchedule = schedule;
-                System.out.println("Loaded schedule. ");
-                System.out.println(currentSchedule); //uses new toString
-                return;
-            }
+        // Load the schedule from the file using the user's loadFile method
+        Schedule loadedSchedule = user.loadFile(scheduleName);
+        if (loadedSchedule == null) {
+            System.out.println("Error: Unable to load schedule.");
+            return;
         }
 
-        // Failed to find
-        System.out.println("Error: No saved schedule found with name '" + name + "'.");
-
+        // Set the loaded schedule as the current schedule
+        currentSchedule = loadedSchedule;
+        System.out.println("Schedule '" + scheduleName + "' loaded successfully.");
     }
+
+
+
 
     private void getProfessorRatings() {
         // Retrieve and store professor ratings
@@ -59,18 +74,37 @@ public class ScheduleManager {
     }
 
 
+
+
+
+    /**
+     * Creates a new schedule, saves it to a file, and sets it as the current schedule.
+     *
+     * @param name The name of the new schedule.
+     */
     public void newSchedule(String name) {
+        // Create a new Schedule object
         Schedule newSchedule = new Schedule();
         newSchedule.name = name;
-        newSchedule.events = new HashSet<>();  // Assuming you want to use HashSet for events
+        newSchedule.events = new HashSet<>();
 
-        currentSchedule = newSchedule;
+        // Save the new schedule to a file
+        user.saveSchedule(newSchedule);
 
-        // If you want to add it to the user's schedules
-        if (user != null) {
-            user.mySchedules.add(newSchedule);
+        // Add the file path to the user's list of schedules
+        String filePath = "schedules/" + name + ".json";
+        if (!user.mySchedules.contains(filePath)) {
+            user.mySchedules.add(filePath);
         }
+
+        // Set the new schedule as the current schedule
+        currentSchedule = newSchedule;
+        System.out.println("New schedule '" + name + "' created and saved.");
     }
+
+
+
+
 
     public void remEvent(Event e) {
         // Remove a course from the current schedule
