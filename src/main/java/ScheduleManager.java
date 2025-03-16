@@ -28,31 +28,34 @@ public class ScheduleManager {
 
 
     /**
-     * Loads a schedule from a file and sets it as the current schedule.
+     * Loads a schedule from a file in the user's directory.
      *
      * @param scheduleName The name of the schedule to load.
+     * @return The loaded Schedule object, or null if the file doesn't exist or an error occurs.
      */
-    public void loadSchedule(String scheduleName) {
+    public Schedule loadSchedule(String scheduleName) {
+        // Define the file path for the schedule
+        String filePath = "users/" + user.name + "/schedules/" + scheduleName + ".json";
+
         // Check if the schedule exists in the user's list
-        String filePath = "schedules/" + scheduleName + ".json";
         if (!user.mySchedules.contains(filePath)) {
-            System.out.println("Error: Schedule not found in user's list.");
-            return;
+            System.out.println("Error: Schedule not found in user's list: " + scheduleName);
+            return null;
         }
 
-        // Load the schedule from the file using the user's loadFile method
-        Schedule loadedSchedule = user.loadFile(scheduleName);
-        if (loadedSchedule == null) {
-            System.out.println("Error: Unable to load schedule.");
-            return;
-        }
+        // Create a Gson instance
+        Gson gson = new Gson();
 
-        // Set the loaded schedule as the current schedule
-        currentSchedule = loadedSchedule;
-        System.out.println("Schedule '" + scheduleName + "' loaded successfully.");
+        try (FileReader reader = new FileReader(filePath)) {
+            // Deserialize the JSON file into a Schedule object
+            Schedule loadedSchedule = gson.fromJson(reader, Schedule.class);
+            System.out.println("Schedule loaded from " + filePath);
+            return loadedSchedule;
+        } catch (IOException e) {
+            System.out.println("Error loading schedule file: " + e.getMessage());
+            return null;
+        }
     }
-
-
 
 
     private void getProfessorRatings() {
@@ -83,6 +86,11 @@ public class ScheduleManager {
      * @param name The name of the new schedule.
      */
     public void newSchedule(String name) {
+        if (user == null) {
+            System.out.println("Error: No user is logged in.");
+            return;
+        }
+
         // Create a new Schedule object
         Schedule newSchedule = new Schedule();
         newSchedule.name = name;
@@ -92,7 +100,7 @@ public class ScheduleManager {
         user.saveSchedule(newSchedule);
 
         // Add the file path to the user's list of schedules
-        String filePath = "schedules/" + name + ".json";
+        String filePath = "users/" + user.name + "/schedules/" + name + ".json";
         if (!user.mySchedules.contains(filePath)) {
             user.mySchedules.add(filePath);
         }
@@ -119,6 +127,52 @@ public class ScheduleManager {
     public void undo() {
         // Undo last action
     }
+
+
+
+
+
+
+
+    /**
+     * Logs in a user by verifying their username and password.
+     *
+     * @param username The username of the user.
+     * @param password The password of the user.
+     * @return True if login is successful, false otherwise.
+     */
+    public boolean loginUser(String username, String password) {
+        // Load the user's data
+        user = User.loadUserData(username);
+
+        if (user == null) {
+            System.out.println("Error: User not found.");
+            return false;
+        }
+
+        // Check the password
+        if (user.checkPassword(password)) {
+            System.out.println("User logged in successfully: " + user.name);
+            return true;
+        } else {
+            System.out.println("Error: Incorrect password.");
+            return false;
+        }
+    }
+
+    /**
+     * Logs out the current user by saving their data to a file.
+     */
+    public void logoutUser() {
+        if (user != null) {
+            user.saveUserData();
+            System.out.println("User logged out and data saved: " + user.name);
+            user = null; // Clear the user field
+        } else {
+            System.out.println("Error: No user is currently logged in.");
+        }
+    }
+
 
 
 }

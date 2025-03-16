@@ -1,13 +1,15 @@
 import java.util.Scanner;
+import java.util.Set;
 
 public class Main {
 
-//public courseDatabase
+    public Set<Course> courseDatabase;
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         ScheduleManager scheduleManager = new ScheduleManager();
-        scheduleManager.user = new User("Bob");
+        scheduleManager.user = User.addUser("Bob", "password");
+        scheduleManager.loginUser("Bob", "password");
         System.out.println(scheduleManager.user);
         System.out.println("\n\n");
         System.out.println("Welcome to Course Scheduler!");

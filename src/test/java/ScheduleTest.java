@@ -8,8 +8,11 @@ public class ScheduleTest {
 
     @BeforeEach
     public void setUp() {
-        User user = new User("John Doe");
         scheduleManager = new ScheduleManager();
+
+        User user = User.addUser("testUser", "password");
+        scheduleManager.loginUser("testUser", "password");
+
         scheduleManager.user = user;
     }
 
