@@ -75,8 +75,8 @@ public class Search {
                 course.subject.equalsIgnoreCase(token) || // Check subject
                 course.professor.name.contains(token) || // Check professor name
                 course.semester.equalsIgnoreCase(token) || // Check semester
-                course.location.equalsIgnoreCase(token) || // Check location
-                String.valueOf(course.section).equalsIgnoreCase(token); // Check section
+                course.location.contains(token) || // Check location
+                course.days.contains(token); // Check days (use contains for partial matches)
     }
 
 

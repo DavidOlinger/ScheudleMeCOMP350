@@ -4,4 +4,10 @@ public class Professor {
     public float difficulty;
     public String department;
 
+
+
+    Professor(String name){
+        this.name = name;
+    }
+
 }

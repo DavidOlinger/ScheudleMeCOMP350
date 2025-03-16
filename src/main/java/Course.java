@@ -60,6 +60,5 @@ public class Course extends Event {
                 "\nSubject: " + subject;
     }
 
-    //need to update toString with new variables
 
 }
