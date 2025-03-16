@@ -35,7 +35,7 @@ public class Schedule {
         // Iterate through events in the schedule
         for (Event e : this.events) {
             if (e instanceof Course course) { // Only copy ref numbers from Course objects
-                refNumbers.add(String.valueOf(course.refNumber)); // Convert int to string
+                refNumbers.add(String.valueOf(course.courseCode)); // Convert int to string
             }
         }
 

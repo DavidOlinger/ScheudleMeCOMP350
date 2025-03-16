@@ -1,26 +1,65 @@
+import java.sql.Timestamp;
 import java.util.ArrayList;
 
 
 public class Course extends Event {
-    public int refNumber;
-    public Professor professor;
-    public ArrayList<Course> prerequisites;
-    public String description;
+    //public int refNumber; // json file doesn't include this
+    //public ArrayList<Course> prerequisites; // json file doesn't include this
+    //public String description; // json file doesn't include this
 
-    Course(String name, String days, TimeSlot time, int refNum, Professor prof, ArrayList<Course> prereqs, String desc){
-        // add superclass init
+    public Professor professor;
+    public int courseCode;
+    public String semester;
+    public String location;
+    public char section;
+    public String subject;
+
+//    {  THIS IS WHAT THE JSON LOOKS LIKE
+//        "credits": 3,
+//            "faculty": ["Graybill, Keith B."],
+//        "is_lab": false,
+//            "is_open": true,
+//            "location": "SHAL 316",
+//            "name": "PRINCIPLES OF ACCOUNTING I",
+//            "number": 201,
+//            "open_seats": 1,
+//            "section": "A",
+//            "semester": "2023_Fall",
+//            "subject": "ACCT",
+//            "times": [
+//        {
+//            "day": "T",
+//                "end_time": "16:45:00",
+//                "start_time": "15:30:00"
+//        },
+//        {
+//            "day": "R",
+//                "end_time": "16:45:00",
+//                "start_time": "15:30:00"
+//        }
+//  ],
+//        "total_seats": 30
+//    }
+
+    Course(String name, TimeSlot time, String days, Professor professor, int coursecode, String semester,
+           String location, char section, String subject){
         super(name, days, time);
-        refNumber = refNum;
-        professor = prof;
-        prerequisites = prereqs;
-        description = desc;
+        this.professor = professor;
+        this.courseCode = coursecode;
+        this.semester = semester;
+        this.location = location;
+        this.section = section;
+        this.subject = subject;
     }
 
 
     @Override
-    public String toString(){
-        return super.toString() + "\nRef Number: " + refNumber + "\nProfessor: "
-                + professor + "\nPrerequisites: " + prerequisites + "\nDescription: " + description;
+    public String toString() {
+        return super.toString() + "\nProfessor: " + professor + "\nCourse Code: " + courseCode +
+                "\nSemester: " + semester + "\nLocation: " + location + "\nSection: " + section +
+                "\nSubject: " + subject;
     }
+
+    //need to update toString with new variables
 
 }
