@@ -4,7 +4,6 @@ import java.util.Set;
 
 
 public class Search {
-    //public String query; //?? why is this here
     public Filter filter;
     //public Set<Course> resultsList;
     public Set<Course> filteredResultsList;
@@ -38,7 +37,18 @@ public class Search {
             for (Course course : filteredResultsList) {
                 // Check if the course matches the token in any field
                 if (matchesToken(course, token)) {
-                    matchingCourses.add(course);
+                    if (filter != null && filter.timeRange != null){ // if a time range is specified
+
+                        //if the course's time range is within the filter's time range
+                        if (course.time.startTime >= filter.timeRange.startTime && course.time.endTime <= filter.timeRange.endTime){
+                            matchingCourses.add(course); //add the course
+                        }
+                        //otherwise don't add the course
+
+                    } else { //if no time range specified
+                        matchingCourses.add(course);
+                    }
+
                 }
             }
 
@@ -87,8 +97,9 @@ public class Search {
 
 
 
-    public void ModifyTimeFilter() {
-        // Modify search time filter
+
+    public void ModifyTimeFilter(TimeSlot ts) {
+        filter.timeRange = ts;
     }
 
     public void ModifyDayFilter() {
