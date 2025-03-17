@@ -13,6 +13,7 @@ public class Course extends Event {
     public String location;
     public char section;
     public String subject;
+    public int credits;
 
 //    {  THIS IS WHAT THE JSON LOOKS LIKE
 //        "credits": 3,
@@ -42,7 +43,7 @@ public class Course extends Event {
 //    }
 
     Course(String name, TimeSlot time, String days, Professor professor, int coursecode, String semester,
-           String location, char section, String subject){
+           String location, char section, String subject, int credits){
         super(name, days, time);
         this.professor = professor;
         this.courseCode = coursecode;
@@ -50,6 +51,7 @@ public class Course extends Event {
         this.location = location;
         this.section = section;
         this.subject = subject;
+        this.credits = credits;
     }
 
 

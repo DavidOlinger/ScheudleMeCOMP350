@@ -63,6 +63,14 @@ public class Schedule {
         return sb.toString();
     }
 
-
+    public int getTotalCredits() {
+        int totalCredits = 0;
+        for (Event event : this.events) {
+            if (event instanceof Course course) {
+                totalCredits += course.credits;
+            }
+        }
+        return totalCredits;
+    }
 
 }

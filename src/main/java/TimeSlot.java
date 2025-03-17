@@ -10,10 +10,25 @@ public class TimeSlot {
         startTime = Integer.parseInt(startTimeArr[0]) * 3600 + Integer.parseInt(startTimeArr[1]) * 60 + Integer.parseInt(startTimeArr[2]);
         endTime = Integer.parseInt(endTimeArr[0]) * 3600 + Integer.parseInt(endTimeArr[1]) * 60 + Integer.parseInt(endTimeArr[2]);
     }
-    
+
+    TimeSlot(int startTime, int endTime) {
+
+        this.startTime = startTime;
+        this.endTime = endTime;
+    }
+
+
     @Override
     public String toString() {
-        return "Start: " + startTime + ", End: " + endTime;
+        int startHours = startTime / 3600;
+        int startMinutes = (startTime % 3600) / 60;
+        int startSeconds = startTime % 60;
+        int endHours = endTime / 3600;
+        int endMinutes = (endTime % 3600) / 60;
+        int endSeconds = endTime % 60;
+        return String.format("Start: %02d:%02d:%02d, End: %02d:%02d:%02d",
+                startHours, startMinutes, startSeconds,
+                endHours, endMinutes, endSeconds);
     }
 
 }
