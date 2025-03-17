@@ -22,15 +22,15 @@ class SearchTest {
         // Create some courses and add them to the database
         courseDatabase.add(new Course("PRINCIPLES OF ACCOUNTING I",
                 new TimeSlot("15:30:00", "16:45:00"), "TR",
-                prof1, 201, "2023_Fall", "SHAL 316", 'A', "ACCT"));
+                prof1, 201, "2023_Fall", "SHAL 316", 'A', "ACCT", 3));
 
         courseDatabase.add(new Course("PRINCIPLES OF ACCOUNTING I",
                 new TimeSlot("10:00:00", "10:50:00"), "MWF",
-                prof2, 201, "2023_Fall", "SHAL 309", 'B', "ACCT"));
+                prof2, 201, "2023_Fall", "SHAL 309", 'B', "ACCT", 3));
 
         courseDatabase.add(new Course("INTRODUCTION TO COMPUTER SCIENCE",
                 new TimeSlot("09:00:00", "10:15:00"), "MW",
-                new Professor("Smith, John"), 101, "2023_Fall", "SCI 202", 'C', "CS"));
+                new Professor("Smith, John"), 101, "2023_Fall", "SCI 202", 'C', "CS", 3));
 
         // Set the course database in the Search object
         search.courseDatabase = courseDatabase;
@@ -151,5 +151,43 @@ class SearchTest {
         }
     }
 
+    @Test
+    void testSearchWithTimeFilter() {
+        // Initialize filter if not already done in setUp
+        search.filter = new Filter();
+
+        // Set time filter for afternoon classes (after 12:00)
+        search.ModifyTimeFilter(new TimeSlot("12:00:00", "23:59:59"));
+
+        // Search for all courses (empty string to get all courses through matching)
+        search.SearchQ("");
+
+        // Verify that only afternoon courses are in results
+        assertEquals(1, search.filteredResultsList.size());
+        for (Course course : search.filteredResultsList) {
+            assertTrue(course.time.startTime >= 12 * 3600,
+                    "Course should start after 12:00");
+        }
+    }
+
+    @Test
+    void testSearchWithSpecificTimeRangeFilter() {
+        search.filter = new Filter();
+
+        // Set time filter for morning classes between 9:00 and 11:00
+        search.ModifyTimeFilter(new TimeSlot("09:00:00", "11:00:00"));
+
+        // Search for all courses
+        search.SearchQ("");
+
+        // Verify that only courses within the time range are returned
+        assertEquals(2, search.filteredResultsList.size());
+        for (Course course : search.filteredResultsList) {
+            assertTrue(course.time.startTime >= 9 * 3600,
+                    "Course should start after or at 9:00");
+            assertTrue(course.time.endTime <= 11 * 3600,
+                    "Course should end before or at 11:00");
+        }
+    }
 
 }

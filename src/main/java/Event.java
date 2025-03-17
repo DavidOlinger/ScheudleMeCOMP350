@@ -38,6 +38,7 @@ public class Event {
         return "Name: " + name + "\nDays: " + days + "\nTime: " + time;
     }
 
+
     public String quietToString() {
         return "Event:" + name + " on " + days + " with timeslot: " + time;
     }
