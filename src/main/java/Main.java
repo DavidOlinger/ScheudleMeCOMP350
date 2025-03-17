@@ -8,72 +8,6 @@ import java.util.Set;
 
 public class Main {
 
-    //public Set<Course> courseDatabase;
-
-    //public static void main(String[] args) {
-//        Scanner scanner = new Scanner(System.in);
-//        ScheduleManager scheduleManager = new ScheduleManager();
-//        scheduleManager.user = User.addUser("Bob", "password");
-//        scheduleManager.loginUser("Bob", "password");
-//        System.out.println(scheduleManager.user);
-//        System.out.println("\n\n");
-//        System.out.println("Welcome to Course Scheduler!");
-//        System.out.println("1. Load an existing schedule");
-//        System.out.println("2. Create a new schedule");
-//        System.out.print("Please select an option (1-2): ");
-//
-//        int choice;
-//        try {
-//            choice = Integer.parseInt(scanner.nextLine());
-//        } catch (NumberFormatException e) {
-//            System.out.println("Invalid input. Defaulting to creating a new schedule.");
-//            choice = 2;
-//        }
-//
-//        if (choice == 1) {
-//            System.out.println("Loading functionality not implemented yet.");
-//            System.out.print("Please enter the name of the schedule to load: ");
-//            String scheduleName = scanner.nextLine();
-//            scheduleManager.loadSchedule(scheduleName);
-//        } else if (choice == 2) {
-//            System.out.print("Please enter a name for your new schedule: ");
-//            String scheduleName = scanner.nextLine();
-//            scheduleManager.newSchedule(scheduleName);
-//            System.out.println("New schedule '" + scheduleName + "' created successfully!");
-//        } else {
-//            System.out.println("Invalid choice. Exiting program.");
-//        }
-//
-//        scanner.close();
-
-
-
-//        // Path to the JSON file
-//        String filePath = "data_wolfe.json";
-//
-//        // Load the course database
-//        Set<Course> courseDatabase = loadCourseDatabase(filePath);
-//
-//        // Set the course database in the Search class
-//        Search search = new Search();
-//        search.courseDatabase = courseDatabase;
-//
-//        System.out.println("Course database loaded with " + courseDatabase.size() + " courses.");
-//    }
-//
-//    public static void run() {
-//        //runs the thing
-//    }
-
-
-
-
-
-
-
-
-
-
     // Wrapper class to represent the root JSON object
     private static class CourseList {
         List<CourseData> classes; // List of courses in the JSON
@@ -224,11 +158,42 @@ public class Main {
         search.SearchQ("MWF");
 
         System.out.println("\nAll tests completed.");
+
+
+
+        Scanner scanner = new Scanner(System.in);
+        ScheduleManager scheduleManager = new ScheduleManager();
+        scheduleManager.user = User.addUser("Bob", "password");
+        scheduleManager.loginUser("Bob", "password");
+        System.out.println(scheduleManager.user);
+        System.out.println("\n\n");
+        System.out.println("Welcome to Course Scheduler!");
+        System.out.println("1. Load an existing schedule");
+        System.out.println("2. Create a new schedule");
+        System.out.print("Please select an option (1-2): ");
+
+        int choice;
+        try {
+            choice = Integer.parseInt(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid input. Defaulting to creating a new schedule.");
+            choice = 2;
+        }
+
+        if (choice == 1) {
+            System.out.println("Loading functionality not implemented yet.");
+            System.out.print("Please enter the name of the schedule to load: ");
+            String scheduleName = scanner.nextLine();
+            scheduleManager.loadSchedule(scheduleName);
+        } else if (choice == 2) {
+            System.out.print("Please enter a name for your new schedule: ");
+            String scheduleName = scanner.nextLine();
+            scheduleManager.newSchedule(scheduleName);
+            System.out.println("New schedule '" + scheduleName + "' created successfully!");
+        } else {
+            System.out.println("Invalid choice. Exiting program.");
+        }
+
+        scanner.close();
     }
-
-
-
-
-
-
 }
