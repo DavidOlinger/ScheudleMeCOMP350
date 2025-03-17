@@ -22,15 +22,15 @@ class SearchTest {
         // Create some courses and add them to the database
         courseDatabase.add(new Course("PRINCIPLES OF ACCOUNTING I",
                 new TimeSlot("15:30:00", "16:45:00"), "TR",
-                prof1, 201, "2023_Fall", "SHAL 316", 'A', "ACCT"));
+                prof1, 201, "2023_Fall", "SHAL 316", 'A', "ACCT", 3));
 
         courseDatabase.add(new Course("PRINCIPLES OF ACCOUNTING I",
                 new TimeSlot("10:00:00", "10:50:00"), "MWF",
-                prof2, 201, "2023_Fall", "SHAL 309", 'B', "ACCT"));
+                prof2, 201, "2023_Fall", "SHAL 309", 'B', "ACCT", 3));
 
         courseDatabase.add(new Course("INTRODUCTION TO COMPUTER SCIENCE",
                 new TimeSlot("09:00:00", "10:15:00"), "MW",
-                new Professor("Smith, John"), 101, "2023_Fall", "SCI 202", 'C', "CS"));
+                new Professor("Smith, John"), 101, "2023_Fall", "SCI 202", 'C', "CS", 3));
 
         // Set the course database in the Search object
         search.courseDatabase = courseDatabase;
