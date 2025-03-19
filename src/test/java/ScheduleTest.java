@@ -66,4 +66,51 @@ public class ScheduleTest {
         System.out.println(ScheduleManager.getCurrentSchedule());
         assertTrue(conflict, "Event should conflict with existing event");
     }
+
+    @Test
+    public void testCopyRefNumbers() {
+        System.out.println("Testing copyRefNumbers method...");
+        scheduleManager.newSchedule("Test Schedule");
+        TimeSlot timeSlot = new TimeSlot("08:00:00", "09:00:00");
+        Course course1 = new Course("Math Class", timeSlot, "MWF", new Professor("Prof. A"), 101, "Fall", "Room 101", 'A', "MATH", 3);
+        Course course2 = new Course("Science Class", timeSlot, "MWF", new Professor("Prof. B"), 102, "Fall", "Room 102", 'B', "SCI", 4);
+        scheduleManager.addEvent(course1);
+        scheduleManager.addEvent(course2);
+
+        Schedule currentSchedule = ScheduleManager.getCurrentSchedule();
+        currentSchedule.copyRefNumbers();
+    }
+
+    @Test
+    public void testGetTotalCreditsConflict() {
+        System.out.println("Testing getTotalCredits method...");
+        scheduleManager.newSchedule("Test Schedule");
+        TimeSlot timeSlot = new TimeSlot("08:00:00", "09:00:00");
+        Course course1 = new Course("Math Class", timeSlot, "MWF", new Professor("Prof. A"), 101, "Fall", "Room 101", 'A', "MATH", 3);
+        Course course2 = new Course("Science Class", timeSlot, "MWF", new Professor("Prof. B"), 102, "Fall", "Room 102", 'B', "SCI", 4);
+        scheduleManager.addEvent(course1);
+        scheduleManager.addEvent(course2);
+
+        Schedule currentSchedule = ScheduleManager.getCurrentSchedule();
+        int totalCredits = currentSchedule.getTotalCredits();
+        assertEquals(3, totalCredits, "Total credits should be 3");
+    }
+
+    @Test
+    public void testGetTotalCreditsNoConflict() {
+        System.out.println("Testing getTotalCredits method...");
+        scheduleManager.newSchedule("Test Schedule");
+        TimeSlot timeSlot1 = new TimeSlot("08:00:00", "09:00:00");
+        TimeSlot timeSlot2 = new TimeSlot("09:00:00", "10:00:00");
+        Course course1 = new Course("Math Class", timeSlot1, "MWF", new Professor("Prof. A"), 101, "Fall", "Room 101", 'A', "MATH", 3);
+        Course course2 = new Course("Science Class", timeSlot2, "MWF", new Professor("Prof. B"), 102, "Fall", "Room 102", 'B', "SCI", 4);
+        scheduleManager.addEvent(course1);
+        scheduleManager.addEvent(course2);
+
+        Schedule currentSchedule = ScheduleManager.getCurrentSchedule();
+        int totalCredits = currentSchedule.getTotalCredits();
+        assertEquals(7, totalCredits, "Total credits should be 7");
+    }
+
+
 }

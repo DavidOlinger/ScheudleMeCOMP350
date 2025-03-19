@@ -107,7 +107,8 @@ public class Main {
                         courseData.semester,
                         courseData.location,
                         courseData.section.charAt(0), // Convert section to char
-                        courseData.subject
+                        courseData.subject,
+                        courseData.credits
                 );
 
                 // Step 7: Add the course to the database
