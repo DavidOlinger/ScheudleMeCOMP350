@@ -8,7 +8,6 @@ public class Search {
     //public Set<Course> resultsList;
     public Set<Course> filteredResultsList;
     //private Set<Professor> professors;
-    private CalendarView calendarView;
 
     public Set<Course> courseDatabase;
 
@@ -71,11 +70,6 @@ public class Search {
                 System.out.println(course);
             }
         }
-
-        if (calendarView != null) {
-            calendarView.setSearchResults(filteredResultsList);
-            calendarView.display();
-        }
     }
 
     /**
@@ -94,19 +88,6 @@ public class Search {
                 course.location.contains(token) || // Check location
                 course.days.contains(token); // Check days (use contains for partial matches)
     }
-
-    public void setCalendarView(CalendarView view){
-        this.calendarView = view;
-    }
-
-
-
-
-
-
-
-
-
 
     public void ModifyTimeFilter(TimeSlot ts) {
         filter.timeRange = ts;

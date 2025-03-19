@@ -82,7 +82,8 @@ public class Main {
                         timeSlots.add(timeSlot);
                     }
                 } else {
-                    System.out.println("Warning: No time slots listed for course: " + courseData.name);
+                    TimeSlot timeSlot = new TimeSlot("", "");
+                    timeSlots.add(timeSlot);
                 }
 
                 // Step 5: Combine days from all time slots (e.g., "MWF" or "TR")
@@ -96,10 +97,6 @@ public class Main {
                 System.out.println("Days: " + days);
 
                 // Step 6: Create a Course object
-                if (timeSlots.isEmpty()) {
-                    System.out.println("Warning: Skipping course due to missing time slots: " + courseData.name);
-                    continue; // Skip this course if no time slots are available
-                }
 
                 Course course = new Course(
                         courseData.name,
@@ -127,6 +124,10 @@ public class Main {
         return courseDatabase;
     }
 
+    public static int searchLoop(Scanner s){
+
+        return 0;
+    }
     public static void main(String[] args) {
         // Path to the JSON file
         String filePath = "data_wolfe.json";
@@ -138,29 +139,6 @@ public class Main {
         // Step 2: Set the course database in the Search class
         Search search = new Search();
         search.courseDatabase = courseDatabase;
-
-        // Step 3: Test the search functionality
-        System.out.println("\nRunning search tests...");
-
-        // Test 1: Search for a course by name
-        System.out.println("\nTest 1: Searching for 'PRINCIPLES OF ACCOUNTING I'...");
-        search.SearchQ("PRINCIPLES OF ACCOUNTING I");
-
-        // Test 2: Search for a course by subject
-        System.out.println("\nTest 2: Searching for subject 'ACCT'...");
-        search.SearchQ("ACCT");
-
-        // Test 3: Search for a course by professor
-        System.out.println("\nTest 3: Searching for professor 'Graybill'...");
-        search.SearchQ("Graybill");
-
-        // Test 4: Search for a course by time (e.g., "MWF")
-        System.out.println("\nTest 4: Searching for courses on 'MWF'...");
-        search.SearchQ("MWF");
-
-        System.out.println("\nAll tests completed.");
-
-
 
         Scanner scanner = new Scanner(System.in);
         ScheduleManager scheduleManager = new ScheduleManager();
