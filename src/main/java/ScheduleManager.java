@@ -23,6 +23,12 @@ public class ScheduleManager {
         return currentSchedule;
     }
 
+    private CalendarView calendarView;
+
+    public ScheduleManager() {
+        this.calendarView = new CalendarView();
+    }
+
 
 
 
@@ -171,6 +177,13 @@ public class ScheduleManager {
         } else {
             System.out.println("Error: No user is currently logged in.");
         }
+    }
+
+    public void showCalendar() {
+        // Display the calendar view
+        calendarView.setSchedule(currentSchedule);
+        calendarView.setSearchResults(currentSearch.filteredResultsList);
+        calendarView.display();
     }
 
 
