@@ -12,7 +12,7 @@ public class CourseTest {
     public void setUp() {
         professor = new Professor("Graybill, Keith B.");
         timeSlot = new TimeSlot("15:30:00", "16:45:00");
-        course = new Course("PRINCIPLES OF ACCOUNTING I", timeSlot, "TR", professor, 201, "2023_Fall", "SHAL 316", 'A', "ACCT");
+        course = new Course("PRINCIPLES OF ACCOUNTING I", timeSlot, "TR", professor, 201, "2023_Fall", "SHAL 316", 'A', "ACCT", 3);
     }
 
     @Test

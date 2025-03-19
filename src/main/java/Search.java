@@ -89,15 +89,6 @@ public class Search {
                 course.days.contains(token); // Check days (use contains for partial matches)
     }
 
-
-
-
-
-
-
-
-
-
     public void ModifyTimeFilter(TimeSlot ts) {
         filter.timeRange = ts;
     }
