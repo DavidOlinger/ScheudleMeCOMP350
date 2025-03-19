@@ -57,7 +57,7 @@ public class Search {
         } else {
             System.out.println("Courses matching '" + query + "':");
             for (Course course : filteredResultsList) {
-                System.out.println(course);
+                System.out.println(course+"\n");
             }
         }
     }
@@ -72,20 +72,13 @@ public class Search {
     private boolean matchesToken(Course course, String token) {
         // Check if the token matches any of the relevant fields
         return String.valueOf(course.courseCode).equals(token) || // Check courseCode
+                course.name.contains(token) || // Check course name
                 course.subject.equalsIgnoreCase(token) || // Check subject
                 course.professor.name.contains(token) || // Check professor name
                 course.semester.equalsIgnoreCase(token) || // Check semester
                 course.location.contains(token) || // Check location
                 course.days.contains(token); // Check days (use contains for partial matches)
     }
-
-
-
-
-
-
-
-
 
     public void ModifyTimeFilter() {
         // Modify search time filter
