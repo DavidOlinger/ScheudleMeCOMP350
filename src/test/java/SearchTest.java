@@ -190,4 +190,20 @@ class SearchTest {
         }
     }
 
+    @Test
+    void testSearchQ_ByCourseName() {
+        // Add a course with a specific name for testing
+        courseDatabase.add(new Course("ADVANCED MANUSCRIPT DEVELOPMENT",
+                new TimeSlot("14:00:00", "15:15:00"), "TR",
+                new Professor("Johnson, Mary"), 301, "2023_Fall", "SHAL 310", 'A', "ENGL", 3));
+
+        // Search for partial course name
+        search.SearchQ("manuscript");
+
+        // Verify that the filtered results contain the course
+        assertEquals(1, search.filteredResultsList.size());
+        assertTrue(search.filteredResultsList.iterator().next().name.toLowerCase()
+                .contains("manuscript"));
+    }
+
 }

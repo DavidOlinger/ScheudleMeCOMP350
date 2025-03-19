@@ -23,7 +23,7 @@ public class ScheduleManager {
         return currentSchedule;
     }
 
-    private CalendarView calendarView;
+    public CalendarView calendarView;
 
     public ScheduleManager() {
         this.calendarView = new CalendarView();

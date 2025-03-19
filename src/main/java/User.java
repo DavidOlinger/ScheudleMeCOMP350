@@ -63,6 +63,11 @@ public class User {
      *
      * @param schedule The schedule to save.
      */
+    /**
+     * Saves a schedule to a file in the user's directory and updates the user data.
+     *
+     * @param schedule The schedule to save.
+     */
     public void saveSchedule(Schedule schedule) {
         if (schedule == null) {
             System.out.println("Error: Schedule is null.");
@@ -87,11 +92,16 @@ public class User {
             gson.toJson(schedule, writer);
             System.out.println("Schedule saved to " + fileName);
 
-            // Add the file path to the user's list
+            // Add the file path to the user's list if it's not already there
             if (!mySchedules.contains(fileName)) {
                 mySchedules.add(fileName);
                 System.out.println("Added schedule file path to mySchedules.");
             }
+
+            // Save the user data to persist the updated mySchedules list
+            this.saveUserData();
+            System.out.println("User data updated with new schedule information.");
+
         } catch (IOException e) {
             System.out.println("Error saving schedule: " + e.getMessage());
         }
@@ -313,7 +323,7 @@ public class User {
         try (FileReader reader = new FileReader(fileName)) {
             // Deserialize the JSON file into a User object
             User user = gson.fromJson(reader, User.class);
-            System.out.println("User data loaded from " + fileName);
+            //System.out.println("User data loaded from " + fileName);
             return user;
         } catch (IOException e) {
             System.out.println("Error loading user data: " + e.getMessage());

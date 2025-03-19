@@ -80,13 +80,14 @@ public class Search {
      * @return True if the course matches the token, false otherwise.
      */
     private boolean matchesToken(Course course, String token) {
-        // Check if the token matches any of the relevant fields
-        return String.valueOf(course.courseCode).equals(token) || // Check courseCode
-                course.subject.equalsIgnoreCase(token) || // Check subject
-                course.professor.name.contains(token) || // Check professor name
-                course.semester.equalsIgnoreCase(token) || // Check semester
-                course.location.contains(token) || // Check location
-                course.days.contains(token); // Check days (use contains for partial matches)
+        String tokenLower = token.toLowerCase();
+        return String.valueOf(course.courseCode).equals(token) || // Keep exact match for course code
+                course.name.toLowerCase().contains(tokenLower) ||  // Add this line
+                course.subject.toLowerCase().contains(tokenLower) ||
+                course.professor.name.toLowerCase().contains(tokenLower) ||
+                course.semester.toLowerCase().contains(tokenLower) ||
+                course.location.toLowerCase().contains(tokenLower) ||
+                course.days.toLowerCase().contains(tokenLower);
     }
 
     public void ModifyTimeFilter(TimeSlot ts) {
