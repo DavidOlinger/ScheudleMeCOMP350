@@ -7,7 +7,7 @@ public class CalendarView {
     private static final int END_HOUR = 22;   // 10 PM
     private static final int SLOTS_PER_HOUR = 4; // 15-minute slots
 
-    private Schedule schedule;
+    public Schedule schedule;
     private Set<Course> searchResults;
 
     public CalendarView() {
@@ -80,7 +80,16 @@ public class CalendarView {
     }
 
     private boolean isTimeOverlap(TimeSlot timeSlot, int currentTime) {
-        return currentTime >= timeSlot.startTime && currentTime < timeSlot.endTime;
+        // Round the end time for 50-minute classes to nearest 15 minutes
+        int endTime = timeSlot.endTime;
+        int duration = timeSlot.endTime - timeSlot.startTime;
+
+        // If duration is close to 50 minutes (3000 seconds), round to 45 minutes (2700 seconds)
+        if (duration >= 2900 && duration <= 3100) {  // 50 minutes ±100 seconds
+            endTime = timeSlot.startTime + 2700;  // 45 minutes in seconds
+        }
+
+        return currentTime >= timeSlot.startTime && currentTime < endTime;
     }
 
     private String formatCourseDisplay(Course course, int currentTime) {

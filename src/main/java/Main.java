@@ -47,43 +47,42 @@ public class Main {
         Set<Course> courseDatabase = new HashSet<>();
         Gson gson = new Gson();
 
-        System.out.println("Attempting to load course database from: " + filePath);
+        // System.out.println("Attempting to load course database from: " + filePath);
 
         try (FileReader reader = new FileReader(filePath)) {
             // Step 1: Deserialize the JSON file into a CourseList object
-            System.out.println("Parsing JSON file...");
+            // System.out.println("Parsing JSON file...");
             CourseList courseList = gson.fromJson(reader, CourseList.class);
 
             if (courseList == null || courseList.classes == null) {
-                System.out.println("Error: JSON file is empty or malformed.");
+                // System.out.println("Error: JSON file is empty or malformed.");
                 return courseDatabase;
             }
 
-            System.out.println("Found " + courseList.classes.size() + " courses in the JSON file.");
+            // System.out.println("Found " + courseList.classes.size() + " courses in the JSON file.");
 
             // Step 2: Loop through each course in the JSON and convert it to a Course object
             for (CourseData courseData : courseList.classes) {
-                System.out.println("\nProcessing course: " + courseData.name);
+                // System.out.println("\nProcessing course: " + courseData.name);
 
                 // Step 3: Create a Professor object (assuming the first faculty member is the primary professor)
                 if (courseData.faculty == null || courseData.faculty.isEmpty()) {
-                    System.out.println("Warning: No faculty listed for course: " + courseData.name);
+                    // System.out.println("Warning: No faculty listed for course: " + courseData.name);
                     continue; // Skip this course if no faculty is listed
                 }
                 Professor professor = new Professor(courseData.faculty.get(0));
-                System.out.println("Professor: " + professor.name);
+                // System.out.println("Professor: " + professor.name);
 
                 // Step 4: Create TimeSlot objects for the course
                 Set<TimeSlot> timeSlots = new HashSet<>();
                 if (courseData.times != null && !courseData.times.isEmpty()) {
                     for (TimeSlotData timeData : courseData.times) {
-                        System.out.println("Adding time slot: " + timeData.day + " " + timeData.start_time + "-" + timeData.end_time);
+                        // System.out.println("Adding time slot: " + timeData.day + " " + timeData.start_time + "-" + timeData.end_time);
                         TimeSlot timeSlot = new TimeSlot(timeData.start_time, timeData.end_time);
                         timeSlots.add(timeSlot);
                     }
                 } else {
-                    TimeSlot timeSlot = new TimeSlot("", "");
-                    timeSlots.add(timeSlot);
+                    // System.out.println("Warning: No time slots listed for course: " + courseData.name);
                 }
 
                 // Step 5: Combine days from all time slots (e.g., "MWF" or "TR")
@@ -94,9 +93,13 @@ public class Main {
                     }
                 }
                 String days = daysBuilder.toString();
-                System.out.println("Days: " + days);
+                // System.out.println("Days: " + days);
 
                 // Step 6: Create a Course object
+                if (timeSlots.isEmpty()) {
+                    // System.out.println("Warning: Skipping course due to missing time slots: " + courseData.name);
+                    continue; // Skip this course if no time slots are available
+                }
 
                 Course course = new Course(
                         courseData.name,
@@ -112,67 +115,388 @@ public class Main {
                 );
 
                 // Step 7: Add the course to the database
-                System.out.println("Created course: " + course.name);
+                // System.out.println("Created course: " + course.name);
                 courseDatabase.add(course);
             }
         } catch (Exception e) {
-            System.out.println("Error loading course database: " + e.getMessage());
+            // System.out.println("Error loading course database: " + e.getMessage());
             e.printStackTrace();
         }
 
-        System.out.println("\nFinished loading course database. Total courses: " + courseDatabase.size());
+        // System.out.println("\nFinished loading course database. Total courses: " + courseDatabase.size());
         return courseDatabase;
     }
 
-    public static int searchLoop(Scanner s){
-
-        return 0;
-    }
     public static void main(String[] args) {
-        // Path to the JSON file
+        Scanner scanner = new Scanner(System.in);
         String filePath = "data_wolfe.json";
 
-        // Step 1: Load the course database
-        System.out.println("Loading course database...");
+        // Initialize components
+        Search search = new Search();
+        ScheduleManager scheduleManager = new ScheduleManager();
+        CalendarView calendarView = new CalendarView();
         Set<Course> courseDatabase = loadCourseDatabase(filePath);
 
-        // Step 2: Set the course database in the Search class
-        Search search = new Search();
+        // Connect the components
         search.courseDatabase = courseDatabase;
+        calendarView.schedule = scheduleManager.getCurrentSchedule();
 
-        Scanner scanner = new Scanner(System.in);
-        ScheduleManager scheduleManager = new ScheduleManager();
-        scheduleManager.user = User.addUser("Bob", "password");
-        scheduleManager.loginUser("Bob", "password");
-        System.out.println(scheduleManager.user);
-        System.out.println("\n\n");
+        // Login/Registration menu
         System.out.println("Welcome to Course Scheduler!");
-        System.out.println("1. Load an existing schedule");
-        System.out.println("2. Create a new schedule");
-        System.out.print("Please select an option (1-2): ");
+        System.out.println("1. Login");
+        System.out.println("2. Create new account");
+        System.out.print("Enter choice (1-2): ");
 
-        int choice;
-        try {
-            choice = Integer.parseInt(scanner.nextLine());
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid input. Defaulting to creating a new schedule.");
-            choice = 2;
+        String loginChoice = scanner.nextLine();
+
+        switch (loginChoice) {
+            case "1":
+                // Login existing user
+                System.out.print("Enter username: ");
+                String loginUsername = scanner.nextLine();
+                System.out.print("Enter password: ");
+                String loginPassword = scanner.nextLine();
+
+                scheduleManager.user = User.loadUserData(loginUsername);
+                if (scheduleManager.user == null) {
+                    System.out.println("User does not exist. Please create an account.");
+                    return;
+                }
+                if (!scheduleManager.user.checkPassword(loginPassword)) {
+                    System.out.println("Incorrect password. Exiting...");
+                    return;
+                }
+                System.out.println("Login successful!");
+                break;
+
+            case "2":
+                // Create new account
+                System.out.print("Enter new username: ");
+                String newUsername = scanner.nextLine();
+                System.out.print("Enter new password: ");
+                String newPassword = scanner.nextLine();
+
+                scheduleManager.user = User.addUser(newUsername, newPassword);
+                if (scheduleManager.user == null) {
+                    System.out.println("Failed to create user account. Exiting...");
+                    return;
+                }
+                System.out.println("Account created successfully!");
+                break;
+
+            default:
+                System.out.println("Invalid choice. Exiting...");
+                return;
         }
 
-        if (choice == 1) {
-            System.out.println("Loading functionality not implemented yet.");
-            System.out.print("Please enter the name of the schedule to load: ");
-            String scheduleName = scanner.nextLine();
-            scheduleManager.loadSchedule(scheduleName);
-        } else if (choice == 2) {
-            System.out.print("Please enter a name for your new schedule: ");
-            String scheduleName = scanner.nextLine();
-            scheduleManager.newSchedule(scheduleName);
-            System.out.println("New schedule '" + scheduleName + "' created successfully!");
+        // After successful login, check for existing schedules
+        String scheduleName;
+        if (scheduleManager.user.mySchedules != null && !scheduleManager.user.mySchedules.isEmpty()) {
+            System.out.println("\nYou have existing schedules. Would you like to:");
+            System.out.println("1. Load existing schedule");
+            System.out.println("2. Create new schedule");
+            System.out.print("Choice (1-2): ");
+
+            if (scanner.nextLine().equals("1")) {
+                System.out.println("\nAvailable schedules:");
+                int i = 1;
+                String[] scheduleArray = scheduleManager.user.mySchedules.toArray(new String[0]);
+                for (String schedule : scheduleArray) {
+                    // Extract schedule name from path
+                    String name = schedule.substring(schedule.lastIndexOf("/") + 1, schedule.lastIndexOf("."));
+                    System.out.println(i++ + ". " + name);
+                }
+                System.out.print("Enter number (1-" + scheduleArray.length + "): ");
+                try {
+                    int choice = Integer.parseInt(scanner.nextLine());
+                    if (choice > 0 && choice <= scheduleArray.length) {
+                        String selectedSchedule = scheduleArray[choice - 1];
+                        // Extract schedule name from path
+                        scheduleName = selectedSchedule.substring(selectedSchedule.lastIndexOf("/") + 1, selectedSchedule.lastIndexOf("."));
+                        scheduleManager.loadSchedule(scheduleName);
+                    } else {
+                        System.out.println("Invalid choice. Creating new schedule instead.");
+                        System.out.print("Enter new schedule name: ");
+                        scheduleName = scanner.nextLine();
+                        scheduleManager.newSchedule(scheduleName);
+                    }
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid input. Creating new schedule instead.");
+                    System.out.print("Enter new schedule name: ");
+                    scheduleName = scanner.nextLine();
+                    scheduleManager.newSchedule(scheduleName);
+                }
+            } else {
+                System.out.print("Enter new schedule name: ");
+                scheduleName = scanner.nextLine();
+                scheduleManager.newSchedule(scheduleName);
+            }
         } else {
-            System.out.println("Invalid choice. Exiting program.");
+            System.out.println("\nNo existing schedules found. Creating new schedule...");
+            System.out.print("Enter new schedule name: ");
+            scheduleName = scanner.nextLine();
+            scheduleManager.newSchedule(scheduleName);
         }
 
-        scanner.close();
+        // Set up calendar view
+        calendarView.setSchedule(scheduleManager.getCurrentSchedule());
+
+        // Main program loop
+        while (true) {
+            System.out.println("\nMenu Options:");
+            System.out.println("1. Search for courses");
+            System.out.println("2. Add course to schedule");
+            System.out.println("3. Remove course from schedule");
+            System.out.println("4. Save schedule");
+            System.out.println("5. Exit");
+            System.out.print("Enter choice (1-5): ");
+
+            String choice = scanner.nextLine();
+
+            switch (choice) {
+                case "1":
+                    boolean filtering = true;
+                    Set<String> subjectFilter = new HashSet<>();
+                    Set<String> daysFilter = new HashSet<>();
+                    Set<TimeSlot> timeFilter = new HashSet<>();
+
+                    while (filtering) {
+                        System.out.println("\nSearch and Filter Menu:");
+                        System.out.println("1. Enter search query");
+                        System.out.println("2. Filter by subject");
+                        System.out.println("3. Filter by days (MWF/TR)");
+                        System.out.println("4. Filter by time range");
+                        System.out.println("5. Clear all filters");
+                        System.out.println("6. Execute search");
+                        System.out.println("7. Cancel");
+                        System.out.print("Enter choice (1-7): ");
+
+                        String filterChoice = scanner.nextLine();
+                        switch (filterChoice) {
+                            case "1":
+                                System.out.print("Enter search query: ");
+                                String query = scanner.nextLine();
+                                search.SearchQ(query);
+                                break;
+
+                            case "2":
+                                System.out.print("Enter subject code (e.g., MATH, COMP): ");
+                                String subject = scanner.nextLine().toUpperCase();
+                                subjectFilter.add(subject);
+                                System.out.println("Added subject filter: " + subject);
+                                break;
+
+                            case "3":
+                                System.out.print("Enter days pattern (MWF or TR): ");
+                                String days = scanner.nextLine().toUpperCase();
+                                daysFilter.add(days);
+                                System.out.println("Added days filter: " + days);
+                                break;
+
+                            case "4":
+                                System.out.print("Enter start time (HH:mm): ");
+                                String startTime = scanner.nextLine();
+                                System.out.print("Enter end time (HH:mm): ");
+                                String endTime = scanner.nextLine();
+                                timeFilter.add(new TimeSlot(startTime + ":00", endTime + ":00"));
+                                System.out.println("Added time filter: " + startTime + " - " + endTime);
+                                break;
+
+                            case "5":
+                                subjectFilter.clear();
+                                daysFilter.clear();
+                                timeFilter.clear();
+                                System.out.println("All filters cleared");
+                                break;
+
+                            case "6":
+                                filtering = false;
+                                // Apply filters
+                                if (!search.filteredResultsList.isEmpty()) {
+                                    if (!subjectFilter.isEmpty()) {
+                                        search.filteredResultsList.removeIf(course ->
+                                                !subjectFilter.contains(course.subject));
+                                    }
+                                    if (!daysFilter.isEmpty()) {
+                                        search.filteredResultsList.removeIf(course ->
+                                                !daysFilter.contains(course.days));
+                                    }
+                                    // Inside case "6" in the filtering section
+                                    if (!timeFilter.isEmpty()) {
+                                        search.filteredResultsList.removeIf(course -> {
+                                            for (TimeSlot filter : timeFilter) {
+                                                if (course.time.startTime >= filter.startTime &&
+                                                        course.time.endTime <= filter.endTime) {
+                                                    return false;
+                                                }
+                                            }
+                                            return true;
+                                        });
+                                    }
+                                }
+
+                                // Display search results
+                                System.out.println("\nSearch Results:");
+                                int index = 1;
+                                for (Course course : search.filteredResultsList) {
+                                    System.out.printf("%d. %s (%s %d) - %s %s - Prof. %s\n",
+                                            index++,
+                                            course.name,
+                                            course.subject,
+                                            course.courseCode,
+                                            course.days,
+                                            course.time.toString(),
+                                            course.professor.name);
+                                }
+
+                                if (search.filteredResultsList.isEmpty()) {
+                                    System.out.println("No courses found matching your criteria.");
+                                }
+
+                                // Display current schedule
+                                System.out.println("\nCurrent Schedule:");
+                                calendarView.display();
+                                break;
+
+                            case "7":
+                                filtering = false;
+                                break;
+
+                            default:
+                                System.out.println("Invalid choice. Please try again.");
+                        }
+                    }
+                    break;
+
+                case "2":
+                    if (search.filteredResultsList.isEmpty()) {
+                        System.out.println("Please search for courses first.");
+                        break;
+                    }
+                    System.out.println("\nAvailable courses from search results:");
+                    int i = 1;
+                    for (Course course : search.filteredResultsList) {
+                        System.out.printf("%d. %s (%s %d) - %s %s - Prof. %s\n",
+                                i++,
+                                course.name,
+                                course.subject,
+                                course.courseCode,
+                                course.days,
+                                course.time.toString(),
+                                course.professor.name);
+                    }
+                    System.out.print("Enter course number to add (or 0 to cancel): ");
+                    try {
+                        int courseNum = Integer.parseInt(scanner.nextLine());
+                        if (courseNum > 0 && courseNum <= search.filteredResultsList.size()) {
+                            Course selectedCourse = (Course) search.filteredResultsList.toArray()[courseNum - 1];
+
+                            // Check for conflicts before adding
+                            Event conflictingEvent = null;
+                            for (Event event : scheduleManager.getCurrentSchedule().events) {
+                                if (event instanceof Course existingCourse) {
+                                    if (selectedCourse.ConflictsWith(existingCourse)) {
+                                        conflictingEvent = existingCourse;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (conflictingEvent != null) {
+                                Course conflictingCourse = (Course) conflictingEvent;
+                                System.out.println("\nConflict detected!");
+                                System.out.printf("Course 1: %s (%s %d) - %s %s\n",
+                                        selectedCourse.name, selectedCourse.subject,
+                                        selectedCourse.courseCode, selectedCourse.days,
+                                        selectedCourse.time.toString());
+                                System.out.printf("Course 2: %s (%s %d) - %s %s\n",
+                                        conflictingCourse.name, conflictingCourse.subject,
+                                        conflictingCourse.courseCode, conflictingCourse.days,
+                                        conflictingCourse.time.toString());
+
+                                System.out.println("\nWhich course would you like to keep?");
+                                System.out.printf("1. %s (new course)\n", selectedCourse.name);
+                                System.out.printf("2. %s (existing course)\n", conflictingCourse.name);
+                                System.out.print("Enter choice (1-2): ");
+
+                                String conflictChoice = scanner.nextLine();
+                                if (conflictChoice.equals("1")) {
+                                    scheduleManager.remEvent(conflictingEvent);
+                                    scheduleManager.addEvent(selectedCourse);
+                                    System.out.printf("Removed %s and added %s.\n", conflictingCourse.name, selectedCourse.name);
+                                } else if (conflictChoice.equals("2")) {
+                                    System.out.printf("Keeping %s.\n", conflictingCourse.name);
+                                } else {
+                                    System.out.printf("Invalid choice. Keeping %s.\n", conflictingCourse.name);
+                                }
+                            } else {
+                                scheduleManager.addEvent(selectedCourse);
+                                System.out.println("Course added successfully!");
+                            }
+
+                            // Display updated schedule
+                            System.out.println("\nUpdated Schedule:");
+                            calendarView.display();
+                        }
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid input.");
+                    }
+                    break;
+
+                case "3":
+                    if (scheduleManager.getCurrentSchedule().events.isEmpty()) {
+                        System.out.println("No courses in current schedule.");
+                        break;
+                    }
+                    System.out.println("\nCurrent schedule courses:");
+                    i = 1;
+                    for (Event event : scheduleManager.getCurrentSchedule().events) {
+                        if (event instanceof Course course) {
+                            System.out.printf("%d. %s (%s %d) - Prof. %s\n",
+                                    i++,
+                                    course.name,
+                                    course.subject,
+                                    course.courseCode,
+                                    course.professor.name);
+                        }
+                    }
+                    System.out.print("Enter course number to remove (or 0 to cancel): ");
+                    try {
+                        int courseNum = Integer.parseInt(scanner.nextLine());
+                        if (courseNum > 0 && courseNum <= scheduleManager.getCurrentSchedule().events.size()) {
+                            Event eventToRemove = (Event) scheduleManager.getCurrentSchedule().events.toArray()[courseNum - 1];
+                            scheduleManager.remEvent(eventToRemove);
+                            System.out.println("Course removed successfully!");
+
+                            // Display updated schedule
+                            System.out.println("\nUpdated Schedule:");
+                            calendarView.display();
+                        }
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid input.");
+                    }
+                    break;
+
+                case "4":
+                    if (scheduleManager.getCurrentSchedule() != null) {
+                        scheduleManager.user.saveSchedule(scheduleManager.getCurrentSchedule());
+                        System.out.println("Schedule saved successfully!");
+                    } else {
+                        System.out.println("No schedule to save.");
+                    }
+                    break;
+
+                case "5":
+                    System.out.println("Goodbye!");
+                    scanner.close();
+                    return;
+
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        }
     }
+
+
+
 }
