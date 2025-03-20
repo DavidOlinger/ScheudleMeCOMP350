@@ -38,13 +38,31 @@ public class Search {
             for (Course course : filteredResultsList) {
                 // Check if the course matches the token in any field
                 if (matchesToken(course, token)) {
+                    // should display is TRUE if the course matches all filters that are set. it ignores null filters.
+                    boolean timeCheck = false; //set true if it matches a filter
+                    boolean dayCheck = false; //set true if it matches a filter
+
+                    // checking time filter
                     if (filter != null && filter.timeRange != null) { // if a time range is specified
-                        //if the course's time range is within the filter's time range
-                        if (course.time.startTime >= filter.timeRange.startTime && course.time.endTime <= filter.timeRange.endTime) {
-                            matchingCourses.add(course); //add the course
-                        }
-                        //otherwise don't add the course
+                        //if the course's time range is within the filter's time range, return true
+                        timeCheck = isWithinTimeRange(course);
+                        //otherwise don't add the course (return false)
                     } else { //if no time range specified
+                        timeCheck = true;
+                    }
+
+                    //checking day filter
+                    // if a day range is specified that isn't empty
+                    if (filter != null && filter.dayRange != null && !filter.dayRange.isEmpty()) {
+                        //if the course's days are within the filter's day range, return true
+                        dayCheck = isWithinDayRange(course);
+                        //otherwise don't add the course (return false)
+
+                    } else { //if no day range specified
+                        dayCheck = true;
+                    }
+
+                    if (dayCheck && timeCheck) {
                         matchingCourses.add(course);
                     }
                 }
@@ -62,6 +80,7 @@ public class Search {
         return filteredResultsList;
     }
 
+
     /**
      * Display the search results to the console.
      *
@@ -78,6 +97,7 @@ public class Search {
             }
         }
     }
+
 
     /**
      * Searches for courses and displays results.
@@ -103,19 +123,63 @@ public class Search {
                 course.subject.toLowerCase().contains(tokenLower) ||
                 course.professor.name.toLowerCase().contains(tokenLower) ||
                 course.semester.toLowerCase().contains(tokenLower) ||
-                course.location.toLowerCase().contains(tokenLower) ||
-                course.days.toLowerCase().contains(tokenLower);
+                course.location.toLowerCase().contains(tokenLower);
     }
 
+
+    /**
+     * Checks if a course is within the time range specified by the filter.
+     * @param course The course to check.
+     * @return True if the course is within the time range, false otherwise.
+     */
+    private boolean isWithinTimeRange(Course course) {
+        return (course.time.startTime >= filter.timeRange.startTime && course.time.endTime <= filter.timeRange.endTime);
+    }
+
+
+    /**
+     * Checks if a course is within the day range specified by the filter.
+     * @param course The course to check.
+     * @return True if the course is within the day range, false otherwise.
+     */
+    private boolean isWithinDayRange(Course course) {
+        // for each day in the course's days
+        for (int i = 0; i < course.days.length(); i++) {
+            //if it is in the filter's day range
+            if (filter.dayRange.contains(course.days.substring(i, i + 1))) {
+                //the course should be displayed
+                return true;
+            }
+        }
+        //otherwise it should not be displayed
+        return false;
+    }
+
+
+    /**
+     * Modify the time filter to only include the specified time range.
+     * @param ts The time range to include in the filter.
+     */
     public void ModifyTimeFilter(TimeSlot ts) {
         filter.timeRange = ts;
     }
 
-    public void ModifyDayFilter() {
-        // Modify search day filter
+
+    /**
+     * Modify the day filter to only include the specified days. Automatically removes all other characters than MTWRF
+     * @param days The days to include in the filter.
+     */
+    public void ModifyDayFilter(String days) {
+        // remove all characters from "days" that are not 'M', 'T', 'W', 'R', 'F'
+        // and set the dayRange to the result
+        filter.dayRange = days.replaceAll("[^MTWRF]", "");
     }
 
     public void ResetFilters() {
-        // Reset search filters
+        filter.timeRange = null;
+        filter.dayRange = null;
+        //maybe more needed here
     }
+
+
 }
