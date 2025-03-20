@@ -22,8 +22,9 @@ public class Search {
      * Searches for courses that match the user's query.
      *
      * @param query The search query entered by the user.
+     * @return The set of courses that match the query.
      */
-    public void SearchQ(String query) {
+    public Set<Course> searchQuery(String query) {
         // Step 1: Parse the query into tokens
         String[] tokens = query.split("\\s+"); // Split by spaces
 
@@ -37,18 +38,15 @@ public class Search {
             for (Course course : filteredResultsList) {
                 // Check if the course matches the token in any field
                 if (matchesToken(course, token)) {
-                    if (filter != null && filter.timeRange != null){ // if a time range is specified
-
+                    if (filter != null && filter.timeRange != null) { // if a time range is specified
                         //if the course's time range is within the filter's time range
-                        if (course.time.startTime >= filter.timeRange.startTime && course.time.endTime <= filter.timeRange.endTime){
+                        if (course.time.startTime >= filter.timeRange.startTime && course.time.endTime <= filter.timeRange.endTime) {
                             matchingCourses.add(course); //add the course
                         }
                         //otherwise don't add the course
-
                     } else { //if no time range specified
                         matchingCourses.add(course);
                     }
-
                 }
             }
 
@@ -60,16 +58,35 @@ public class Search {
                 break;
             }
         }
+        
+        return filteredResultsList;
+    }
 
-        // Step 4: Display the filtered results
-        if (filteredResultsList.isEmpty()) {
+    /**
+     * Display the search results to the console.
+     *
+     * @param query The original search query.
+     * @param results The set of courses that match the query.
+     */
+    public void displaySearchResults(String query, Set<Course> results) {
+        if (results.isEmpty()) {
             System.out.println("No courses found matching: " + query);
         } else {
             System.out.println("Courses matching '" + query + "':");
-            for (Course course : filteredResultsList) {
+            for (Course course : results) {
                 System.out.println(course);
             }
         }
+    }
+
+    /**
+     * Searches for courses and displays results.
+     * 
+     * @param query The search query entered by the user.
+     */
+    public void SearchQ(String query) {
+        Set<Course> results = searchQuery(query);
+        displaySearchResults(query, results);
     }
 
     /**
