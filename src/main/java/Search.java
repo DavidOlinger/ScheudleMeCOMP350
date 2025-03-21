@@ -93,7 +93,7 @@ public class Search {
         } else {
             System.out.println("Courses matching '" + query + "':");
             for (Course course : results) {
-                System.out.println(course);
+                System.out.println(course + "\n");
             }
         }
     }

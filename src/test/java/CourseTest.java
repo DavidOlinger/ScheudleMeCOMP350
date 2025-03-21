@@ -31,7 +31,7 @@ public class CourseTest {
 
     @Test
     public void testToString() {
-        String expected = "Name: PRINCIPLES OF ACCOUNTING I\nDays: TR\nTime: 15:30:00 - 16:45:00\n" +
+        String expected = "Name: PRINCIPLES OF ACCOUNTING I\nDays: TR\nTime: Start: 15:30:00, End: 16:45:00\n" +
                 "Professor: Graybill, Keith B.\nCourse Code: 201\nSemester: 2023_Fall\n" +
                 "Location: SHAL 316\nSection: A\nSubject: ACCT";
         assertEquals(expected, course.toString());
