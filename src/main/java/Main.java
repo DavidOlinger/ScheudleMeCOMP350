@@ -461,7 +461,7 @@ public class Main {
                         }
 
                         // Display search results using the new method
-                        System.out.println("\nSearch Results:");
+                        System.out.println("\nSearch Results:\n");
                         search.displaySearchResults(query, search.filteredResultsList);
 
                         // Display current schedule

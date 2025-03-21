@@ -201,13 +201,13 @@ public class CalendarView {
         } else if (currentTime > normalizedTime.startTime && currentTime < normalizedTime.endTime) {
             // Course middle - show continuation
             if ((currentTime - normalizedTime.startTime) % 900 == 0) { // Every 15 minutes
-                return "+----";
+                return "++++";
             } else {
                 return "│    ";
             }
         } else if (currentTime == getPreviousSlot(normalizedTime.endTime)) {
             // Course end
-            return "+----";
+            return "++++";
         }
         return "";
     }
