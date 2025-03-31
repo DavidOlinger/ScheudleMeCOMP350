@@ -18,8 +18,8 @@ public class CalendarView {
         this.schedule = schedule;
         // Debug information when setting schedule
         if (schedule != null) {
-            System.out.println("Calendar view received schedule: " + schedule.name);
-            System.out.println("Events in schedule: " + (schedule.events != null ? schedule.events.size() : "null"));
+            // System.out.println("Calendar view received schedule: " + schedule.name);
+            // System.out.println("Events in schedule: " + (schedule.events != null ? schedule.events.size() : "null"));
         }
     }
 
