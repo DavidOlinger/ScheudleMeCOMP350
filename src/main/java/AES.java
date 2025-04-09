@@ -7,8 +7,6 @@ import java.util.Base64;
 public class AES {
 
     public static AES cipherInstance = null;
-    public static final String unicode = "UTF-8";
-    public static final String algorithm = "AES";
 
     private AES(){
 
@@ -21,7 +19,16 @@ public class AES {
     }
 
     public String encrypt(String data, String key) {
-        return "";
+        try {
+            SecretKeySpec secretKey = new SecretKeySpec(key.getBytes("UTF-8"), "AES");
+            Cipher cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+            byte[] encryptedData = cipher.doFinal(data.getBytes("UTF-8"));
+            return Base64.getEncoder().encodeToString(encryptedData);
+        } catch (Exception e){
+            System.err.println(e);
+            return "ENCRYPTION FAILURE";
+        }
     }
     public String decrypt(String data, String key) {
         return "";
