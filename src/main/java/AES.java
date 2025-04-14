@@ -27,10 +27,20 @@ public class AES {
             return Base64.getEncoder().encodeToString(encryptedData);
         } catch (Exception e){
             System.err.println(e);
-            return "ENCRYPTION FAILURE";
+            return data;
         }
     }
     public String decrypt(String data, String key) {
-        return "";
+        try {
+            SecretKeySpec secretKey = new SecretKeySpec(key.getBytes("UTF-8"), "AES");
+            Cipher cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.DECRYPT_MODE, secretKey);
+            byte[] decodedData = Base64.getDecoder().decode(data);
+            byte[] originalData = cipher.doFinal(decodedData);
+            return new String(originalData, "UTF-8");
+        } catch (Exception e){
+            System.err.println(e);
+            return data;
+        }
     }
 }
