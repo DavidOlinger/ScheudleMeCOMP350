@@ -289,7 +289,6 @@ public class Main {
 
                 // Decrypt Schedule
 
-
                 // System.out.println("Loaded schedule: " + loadedSchedule.events);
 
                 // Initialize the undo/redo history after loading a schedule
@@ -324,6 +323,8 @@ public class Main {
             // Update calendar view with the new empty schedule
             calendarView.setSchedule(scheduleManager.getCurrentSchedule());
         }
+        // When initializing the Logger (in Main class)
+        Logger logger = new Logger(scheduleManager.user.name, scheduleName, scheduleManager);
 
         // newSite.core.Main program loop
         while (true) {
@@ -619,6 +620,11 @@ public class Main {
                     } else {
                         scheduleManager.addEvent(selectedCourse);
                         System.out.println("newSite.core.Course added successfully!");
+
+                        // logs the course being added
+                        if (!scheduleManager.addEvent(selectedCourse)) {
+                            logger.logCourseAddition(selectedCourse);
+                        }
                     }
 
                     // Update the calendar view with the modified schedule
@@ -673,6 +679,12 @@ public class Main {
                 if (courseNum > 0) {
                     Event eventToRemove = (Event) scheduleManager.getCurrentSchedule().events.toArray()[courseNum - 1];
                     scheduleManager.remEvent(eventToRemove);
+
+                    // logs the course removal
+                    if (eventToRemove instanceof Course) {
+                        logger.logCourseRemoval((Course)eventToRemove);
+                    }
+
                     System.out.println("newSite.core.Course removed successfully!");
 
                     // Update the calendar view with the modified schedule
