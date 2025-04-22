@@ -230,6 +230,7 @@ public class Main {
 
         // After successful login, check for existing schedules
         String scheduleName;
+        AES encryptor = AES.getInstance();
         if (scheduleManager.user.mySchedules != null && !scheduleManager.user.mySchedules.isEmpty()) {
             boolean validScheduleChoice = false;
             String scheduleChoice = "";
@@ -283,6 +284,10 @@ public class Main {
                 scheduleName = selectedSchedule.substring(selectedSchedule.lastIndexOf("/") + 1, selectedSchedule.lastIndexOf("."));
                 // Load the schedule once and store the result
                 Schedule loadedSchedule = scheduleManager.loadSchedule(scheduleName);
+
+                // Decrypt Schedule
+
+
                 // System.out.println("Loaded schedule: " + loadedSchedule.events);
 
                 // Initialize the undo/redo history after loading a schedule
@@ -713,6 +718,7 @@ public class Main {
                 } else if (choiceNum == exitPosition) {
                     // Exit
                     System.out.println("Goodbye!");
+                    // encrypt Schedule
                     scanner.close();
                     return;
                 }
