@@ -1,3 +1,5 @@
+import newSite.core.Schedule;
+import newSite.core.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.io.File;
@@ -10,9 +12,9 @@ class UserTest {
 
     @BeforeEach
     void setUp() {
-        // Initialize a User before each test
+        // Initialize a newSite.core.User before each test
         user = new User("testUser", "password"); // Initialize the user object
-        System.out.println("Initialized User: " + user.name);
+        System.out.println("Initialized newSite.core.User: " + user.name);
     }
 
     @Test
@@ -31,10 +33,10 @@ class UserTest {
 
         // Check that the schedule was saved and added to the user's list
         assertTrue(user.mySchedules.contains("users/testUser/schedules/TestSchedule.json"),
-                "Schedule file path should be in user's mySchedules list.");
+                "newSite.core.Schedule file path should be in user's mySchedules list.");
         assertTrue(new File("users/testUser/schedules/TestSchedule.json").exists(),
-                "Schedule file should exist on disk.");
-        System.out.println("Schedule saved successfully.");
+                "newSite.core.Schedule file should exist on disk.");
+        System.out.println("newSite.core.Schedule saved successfully.");
     }
 
     @Test
@@ -47,7 +49,7 @@ class UserTest {
 
         // Check that no changes were made
         assertTrue(user.mySchedules.isEmpty(),
-                "User's mySchedules list should remain unchanged.");
+                "newSite.core.User's mySchedules list should remain unchanged.");
         System.out.println("Null schedule was not saved, as expected.");
     }
 
@@ -70,7 +72,7 @@ class UserTest {
         assertNotNull(loadedSchedule, "Loaded schedule should not be null.");
         assertEquals("TestSchedule", loadedSchedule.name,
                 "Loaded schedule name should match the original.");
-        System.out.println("Schedule loaded successfully.");
+        System.out.println("newSite.core.Schedule loaded successfully.");
     }
 
     @Test
@@ -106,7 +108,7 @@ class UserTest {
                 "New schedule file path should be in user's mySchedules list.");
         assertFalse(user.mySchedules.contains("users/testUser/schedules/OldSchedule.json"),
                 "Old schedule file path should not be in user's mySchedules list.");
-        System.out.println("Schedule renamed successfully.");
+        System.out.println("newSite.core.Schedule renamed successfully.");
     }
 
     @Test
@@ -150,8 +152,8 @@ class UserTest {
         // Save user data
         user.saveUserData();
         File userFile = new File("users/testUser.json");
-        assertTrue(userFile.exists(), "User data file should exist.");
-        System.out.println("User data saved successfully.");
+        assertTrue(userFile.exists(), "newSite.core.User data file should exist.");
+        System.out.println("newSite.core.User data saved successfully.");
     }
 
     @Test
@@ -165,7 +167,7 @@ class UserTest {
         User loadedUser = User.loadUserData("testUser");
         assertNotNull(loadedUser, "Loaded user should not be null.");
         assertEquals("testUser", loadedUser.name, "Loaded user name should match.");
-        System.out.println("User data loaded successfully.");
+        System.out.println("newSite.core.User data loaded successfully.");
     }
 
     @Test

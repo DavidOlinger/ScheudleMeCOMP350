@@ -1,3 +1,5 @@
+import newSite.core.Event;
+import newSite.core.TimeSlot;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -5,7 +7,7 @@ public class TimeslotConflictTest {
 
     @Test
     public void testTimeSlotCreation() {
-        System.out.println("Testing TimeSlot creation...");
+        System.out.println("Testing newSite.core.TimeSlot creation...");
         TimeSlot timeSlot = new TimeSlot("08:00:00", "09:00:00");
         System.out.println(timeSlot);
         assertEquals(28800, timeSlot.startTime, "Start time should be 28800 seconds (08:00:00)");
@@ -14,14 +16,14 @@ public class TimeslotConflictTest {
 
     @Test
     public void testEventCreation() {
-        System.out.println("Testing Event creation...");
+        System.out.println("Testing newSite.core.Event creation...");
         TimeSlot timeSlot = new TimeSlot("10:00:00", "11:00:00");
         System.out.println("Timeslot: " + timeSlot);
         Event event = new Event("Math Class", "MWF", timeSlot);
         System.out.println(event);
-        assertEquals("Math Class", event.name, "Event name should be 'Math Class'");
-        assertEquals("MWF", event.days, "Event days should be 'MWF'");
-        assertEquals(timeSlot, event.time, "Event time should be the provided TimeSlot");
+        assertEquals("Math Class", event.name, "newSite.core.Event name should be 'Math Class'");
+        assertEquals("MWF", event.days, "newSite.core.Event days should be 'MWF'");
+        assertEquals(timeSlot, event.time, "newSite.core.Event time should be the provided newSite.core.TimeSlot");
     }
 
     @Test
