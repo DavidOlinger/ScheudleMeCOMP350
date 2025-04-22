@@ -1,6 +1,7 @@
+import newSite.core.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import java.util.HashSet;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class ScheduleManagerTest {
@@ -8,13 +9,13 @@ class ScheduleManagerTest {
 
     @BeforeEach
     void setUp() {
-        // Initialize a ScheduleManager before each test
+        // Initialize a newSite.core.ScheduleManager before each test
         scheduleManager = new ScheduleManager();
 
         // Add a new user and log in
         User user = User.addUser("testUser", "password");
         scheduleManager.loginUser("testUser", "password");
-        System.out.println("Initialized ScheduleManager and User.");
+        System.out.println("Initialized newSite.core.ScheduleManager and newSite.core.User.");
     }
 
     @Test
@@ -31,7 +32,7 @@ class ScheduleManagerTest {
         assertEquals("TestSchedule", ScheduleManager.currentSchedule.name,
                 "Current schedule name should match the created schedule.");
         assertTrue(scheduleManager.user.mySchedules.contains("users/testUser/schedules/TestSchedule.json"),
-                "Schedule file path should be in user's mySchedules list.");
+                "newSite.core.Schedule file path should be in user's mySchedules list.");
         System.out.println("New schedule created successfully.");
     }
 
@@ -70,7 +71,7 @@ class ScheduleManagerTest {
                 "Loaded schedule should not be null.");
         assertEquals("TestSchedule", loadedSchedule.name,
                 "Loaded schedule name should match the original.");
-        System.out.println("Schedule loaded successfully.");
+        System.out.println("newSite.core.Schedule loaded successfully.");
     }
 
     @Test
@@ -100,10 +101,10 @@ class ScheduleManagerTest {
 
         // Add the event to the schedule
         boolean conflict = scheduleManager.addEvent(event);
-        assertFalse(conflict, "Event should be added without conflict.");
+        assertFalse(conflict, "newSite.core.Event should be added without conflict.");
         assertTrue(ScheduleManager.currentSchedule.events.contains(event),
-                "Event should be in the schedule.");
-        System.out.println("Event added successfully.");
+                "newSite.core.Event should be in the schedule.");
+        System.out.println("newSite.core.Event added successfully.");
     }
 
     @Test
@@ -123,10 +124,10 @@ class ScheduleManagerTest {
 
         // Attempt to add the conflicting event
         boolean conflict = scheduleManager.addEvent(event2);
-        assertTrue(conflict, "Event should conflict with existing event.");
+        assertTrue(conflict, "newSite.core.Event should conflict with existing event.");
         assertFalse(ScheduleManager.currentSchedule.events.contains(event2),
                 "Conflicting event should not be added to the schedule.");
-        System.out.println("Event conflict detected successfully.");
+        System.out.println("newSite.core.Event conflict detected successfully.");
     }
 
     @Test
@@ -146,8 +147,8 @@ class ScheduleManagerTest {
 
         // Check that the event was removed
         assertFalse(ScheduleManager.currentSchedule.events.contains(event),
-                "Event should be removed from the schedule.");
-        System.out.println("Event removed successfully.");
+                "newSite.core.Event should be removed from the schedule.");
+        System.out.println("newSite.core.Event removed successfully.");
     }
 
     @Test
@@ -166,7 +167,7 @@ class ScheduleManagerTest {
 
         // Check that the schedule remains unchanged
         assertTrue(ScheduleManager.currentSchedule.events.isEmpty(),
-                "Schedule should remain unchanged.");
+                "newSite.core.Schedule should remain unchanged.");
         System.out.println("Non-existent event was not removed, as expected.");
     }
 
@@ -177,7 +178,7 @@ class ScheduleManagerTest {
         // Log in with valid credentials
         boolean loginSuccess = scheduleManager.loginUser("testUser", "password");
         assertTrue(loginSuccess, "Login should succeed with valid credentials.");
-        System.out.println("User logged in successfully.");
+        System.out.println("newSite.core.User logged in successfully.");
     }
 
     @Test
@@ -206,7 +207,7 @@ class ScheduleManagerTest {
 
         // Log out the current user
         scheduleManager.logoutUser();
-        assertNull(scheduleManager.user, "User should be null after logout.");
-        System.out.println("User logged out successfully.");
+        assertNull(scheduleManager.user, "newSite.core.User should be null after logout.");
+        System.out.println("newSite.core.User logged out successfully.");
     }
 }

@@ -1,3 +1,6 @@
+import newSite.core.Course;
+import newSite.core.Professor;
+import newSite.core.TimeSlot;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,7 +35,7 @@ public class CourseTest {
     @Test
     public void testToString() {
         String expected = "Name: PRINCIPLES OF ACCOUNTING I\nDays: TR\nTime: Start: 15:30:00, End: 16:45:00\n" +
-                "Professor: Graybill, Keith B.\nCourse Code: 201\nSemester: 2023_Fall\n" +
+                "newSite.core.Professor: Graybill, Keith B.\nnewSite.core.Course Code: 201\nSemester: 2023_Fall\n" +
                 "Location: SHAL 316\nSection: A\nSubject: ACCT";
         assertEquals(expected, course.toString());
     }
