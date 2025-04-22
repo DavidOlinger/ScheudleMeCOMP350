@@ -1,3 +1,4 @@
+import newSite.core.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
@@ -19,28 +20,28 @@ public class ScheduleTest {
     @Test
     public void testScheduleCreation() {
         System.out.println("Testing schedule creation...");
-        scheduleManager.newSchedule("Test Schedule");
+        scheduleManager.newSchedule("Test newSite.core.Schedule");
         Schedule currentSchedule = ScheduleManager.getCurrentSchedule();
         assertNotNull(currentSchedule, "Current schedule should not be null");
-        assertEquals("Test Schedule", currentSchedule.name, "Schedule name should be 'Test Schedule'");
+        assertEquals("Test newSite.core.Schedule", currentSchedule.name, "newSite.core.Schedule name should be 'Test newSite.core.Schedule'");
     }
 
     @Test
     public void testAddEvent() {
         System.out.println("Testing adding event...");
-        scheduleManager.newSchedule("Test Schedule");
+        scheduleManager.newSchedule("Test newSite.core.Schedule");
         TimeSlot timeSlot = new TimeSlot("08:00:00", "09:00:00");
         Event event = new Event("Math Class", "MWF", timeSlot);
         boolean conflict = scheduleManager.addEvent(event);
-        assertFalse(conflict, "Event should be added without conflict");
+        assertFalse(conflict, "newSite.core.Event should be added without conflict");
         System.out.println(ScheduleManager.getCurrentSchedule());
-        assertTrue(ScheduleManager.getCurrentSchedule().events.contains(event), "Event should be in the schedule");
+        assertTrue(ScheduleManager.getCurrentSchedule().events.contains(event), "newSite.core.Event should be in the schedule");
     }
 
     @Test
     public void testRemoveEvent() {
         System.out.println("Testing removing event...");
-        scheduleManager.newSchedule("Test Schedule");
+        scheduleManager.newSchedule("Test newSite.core.Schedule");
         TimeSlot timeSlot = new TimeSlot("08:00:00", "09:00:00");
         Event event = new Event("Math Class", "MWF", timeSlot);
         scheduleManager.addEvent(event);
@@ -48,13 +49,13 @@ public class ScheduleTest {
         System.out.println("\n\nREMOVING EVENT\n");
         scheduleManager.remEvent(event);
         System.out.println(ScheduleManager.getCurrentSchedule());
-        assertFalse(ScheduleManager.getCurrentSchedule().events.contains(event), "Event should be removed from the schedule");
+        assertFalse(ScheduleManager.getCurrentSchedule().events.contains(event), "newSite.core.Event should be removed from the schedule");
     }
 
     @Test
     public void testCheckConflicts() {
         System.out.println("Testing checking conflicts...");
-        scheduleManager.newSchedule("Test Schedule");
+        scheduleManager.newSchedule("Test newSite.core.Schedule");
         TimeSlot timeSlot1 = new TimeSlot("08:00:00", "09:00:00");
         Event event1 = new Event("Math Class", "MWF", timeSlot1);
         scheduleManager.addEvent(event1);
@@ -64,13 +65,13 @@ public class ScheduleTest {
         Event event2 = new Event("Science Class", "MWF", timeSlot2);
         boolean conflict = scheduleManager.addEvent(event2);
         System.out.println(ScheduleManager.getCurrentSchedule());
-        assertTrue(conflict, "Event should conflict with existing event");
+        assertTrue(conflict, "newSite.core.Event should conflict with existing event");
     }
 
     @Test
     public void testCopyRefNumbers() {
         System.out.println("Testing copyRefNumbers method...");
-        scheduleManager.newSchedule("Test Schedule");
+        scheduleManager.newSchedule("Test newSite.core.Schedule");
         TimeSlot timeSlot = new TimeSlot("08:00:00", "09:00:00");
         Course course1 = new Course("Math Class", timeSlot, "MWF", new Professor("Prof. A"), 101, "Fall", "Room 101", 'A', "MATH", 3);
         Course course2 = new Course("Science Class", timeSlot, "MWF", new Professor("Prof. B"), 102, "Fall", "Room 102", 'B', "SCI", 4);
@@ -84,7 +85,7 @@ public class ScheduleTest {
     @Test
     public void testGetTotalCreditsConflict() {
         System.out.println("Testing getTotalCredits method...");
-        scheduleManager.newSchedule("Test Schedule");
+        scheduleManager.newSchedule("Test newSite.core.Schedule");
         TimeSlot timeSlot = new TimeSlot("08:00:00", "09:00:00");
         Course course1 = new Course("Math Class", timeSlot, "MWF", new Professor("Prof. A"), 101, "Fall", "Room 101", 'A', "MATH", 3);
         Course course2 = new Course("Science Class", timeSlot, "MWF", new Professor("Prof. B"), 102, "Fall", "Room 102", 'B', "SCI", 4);
@@ -99,7 +100,7 @@ public class ScheduleTest {
     @Test
     public void testGetTotalCreditsNoConflict() {
         System.out.println("Testing getTotalCredits method...");
-        scheduleManager.newSchedule("Test Schedule");
+        scheduleManager.newSchedule("Test newSite.core.Schedule");
         TimeSlot timeSlot1 = new TimeSlot("08:00:00", "09:00:00");
         TimeSlot timeSlot2 = new TimeSlot("09:00:00", "10:00:00");
         Course course1 = new Course("Math Class", timeSlot1, "MWF", new Professor("Prof. A"), 101, "Fall", "Room 101", 'A', "MATH", 3);

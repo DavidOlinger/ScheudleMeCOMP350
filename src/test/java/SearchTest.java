@@ -1,3 +1,4 @@
+import newSite.core.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.util.HashSet;
@@ -11,7 +12,7 @@ class SearchTest {
 
     @BeforeEach
     void setUp() {
-        // Initialize the Search object and manually create a course database
+        // Initialize the newSite.core.Search object and manually create a course database
         search = new Search();
         courseDatabase = new HashSet<>();
 
@@ -32,13 +33,13 @@ class SearchTest {
                 new TimeSlot("09:00:00", "10:15:00"), "MW",
                 new Professor("Smith, John"), 101, "2023_Fall", "SCI 202", 'C', "CS", 3));
 
-        // Set the course database in the Search object
+        // Set the course database in the newSite.core.Search object
         search.courseDatabase = courseDatabase;
     }
 
     @Test
     void testSearchQ_BySubject() {
-        // Search for courses with subject "ACCT"
+        // newSite.core.Search for courses with subject "ACCT"
         search.SearchQ("ACCT");
 
         // Verify that the filtered results contain only ACCT courses
@@ -50,7 +51,7 @@ class SearchTest {
 
     @Test
     void testSearchQ_ByCourseCode() {
-        // Search for courses with course code 201
+        // newSite.core.Search for courses with course code 201
         search.SearchQ("201");
 
         // Verify that the filtered results contain only courses with code 201
@@ -62,7 +63,7 @@ class SearchTest {
 
     @Test
     void testSearchQ_ByProfessor() {
-        // Search for courses taught by "Graybill"
+        // newSite.core.Search for courses taught by "Graybill"
         search.SearchQ("Graybill");
 
         // Verify that the filtered results contain only courses taught by Graybill
@@ -74,7 +75,7 @@ class SearchTest {
 
     @Test
     void testSearchQ_BySemester() {
-        // Search for courses in the "2023_Fall" semester
+        // newSite.core.Search for courses in the "2023_Fall" semester
         search.SearchQ("2023_Fall");
 
         // Verify that the filtered results contain only courses in the 2023_Fall semester
@@ -86,7 +87,7 @@ class SearchTest {
 
     @Test
     void testSearchQ_ByLocation() {
-        // Search for courses in location "SHAL 316"
+        // newSite.core.Search for courses in location "SHAL 316"
         search.SearchQ("SHAL 316");
 
         // Verify that the filtered results contain only courses in SHAL 316
@@ -100,7 +101,7 @@ class SearchTest {
 
     @Test
     void testSearchQ_CombinedQuery() {
-        // Search for courses with subject "ACCT" and course code 201
+        // newSite.core.Search for courses with subject "ACCT" and course code 201
         search.SearchQ("ACCT 201");
 
         // Verify that the filtered results contain only ACCT courses with code 201
@@ -113,7 +114,7 @@ class SearchTest {
 
     @Test
     void testSearchQ_NoMatches() {
-        // Search for a query that matches no courses
+        // newSite.core.Search for a query that matches no courses
         search.SearchQ("MATH 999");
 
         // Verify that no courses are found
@@ -125,7 +126,7 @@ class SearchTest {
 
     @Test
     void testSearchQ_LargerCombinedQuery() {
-        // Search for courses with subject "ACCT", course code 201, and location "SHAL 316"
+        // newSite.core.Search for courses with subject "ACCT", course code 201, and location "SHAL 316"
         search.SearchQ("ACCT 201 SHAL 316");
 
         // Verify that the filtered results contain only the course that matches all criteria
@@ -141,7 +142,7 @@ class SearchTest {
 
     @Test
     void testSearchQ_ByDays() {
-        // Search for courses that meet on "M" (should match "MWF" and "MW")
+        // newSite.core.Search for courses that meet on "M" (should match "MWF" and "MW")
         search.SearchQ("M");
 
         // Verify that the filtered results contain only courses that meet on "M"
@@ -159,14 +160,14 @@ class SearchTest {
         // Set time filter for afternoon classes (after 12:00)
         search.ModifyTimeFilter(new TimeSlot("12:00:00", "23:59:59"));
 
-        // Search for all courses (empty string to get all courses through matching)
+        // newSite.core.Search for all courses (empty string to get all courses through matching)
         search.SearchQ("");
 
         // Verify that only afternoon courses are in results
         assertEquals(1, search.filteredResultsList.size());
         for (Course course : search.filteredResultsList) {
             assertTrue(course.time.startTime >= 12 * 3600,
-                    "Course should start after 12:00");
+                    "newSite.core.Course should start after 12:00");
         }
     }
 
@@ -177,16 +178,16 @@ class SearchTest {
         // Set time filter for morning classes between 9:00 and 11:00
         search.ModifyTimeFilter(new TimeSlot("09:00:00", "11:00:00"));
 
-        // Search for all courses
+        // newSite.core.Search for all courses
         search.SearchQ("");
 
         // Verify that only courses within the time range are returned
         assertEquals(2, search.filteredResultsList.size());
         for (Course course : search.filteredResultsList) {
             assertTrue(course.time.startTime >= 9 * 3600,
-                    "Course should start after or at 9:00");
+                    "newSite.core.Course should start after or at 9:00");
             assertTrue(course.time.endTime <= 11 * 3600,
-                    "Course should end before or at 11:00");
+                    "newSite.core.Course should end before or at 11:00");
         }
     }
 
@@ -197,7 +198,7 @@ class SearchTest {
                 new TimeSlot("14:00:00", "15:15:00"), "TR",
                 new Professor("Johnson, Mary"), 301, "2023_Fall", "SHAL 310", 'A', "ENGL", 3));
 
-        // Search for partial course name
+        // newSite.core.Search for partial course name
         search.SearchQ("manuscript");
 
         // Verify that the filtered results contain the course
