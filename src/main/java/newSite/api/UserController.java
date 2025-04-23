@@ -2,61 +2,64 @@ package newSite.api;
 
 import io.javalin.Javalin;
 import io.javalin.http.Context;
-import newSite.core.Schedule; // ***** START OF NEW CODE ***** (Import Schedule)
+import newSite.core.Schedule;
 import newSite.core.ScheduleManager;
 import newSite.core.User;
 // Assuming ErrorResponse is accessible, e.g., defined in ScheduleMeApp or a util package
 import newSite.ScheduleMeApp; // Or replace with the actual import path for ErrorResponse
 
 import java.util.Map;
-// ***** START OF NEW CODE ***** (Import List)
 import java.util.List;
+// ***** START OF NEW CODE ***** (Import ArrayList if needed, though User should handle it)
+import java.util.ArrayList;
 // ***** END OF NEW CODE *****
+import java.util.NoSuchElementException; // Import if used in getCurrentUser or elsewhere
 
 
 public class UserController {
 
     public static void registerEndpoints(Javalin app, ScheduleManager scheduleManager) {
 
-        // Placeholder: Get current user info
-        // TODO: Implement proper session handling to identify the actual current user
+        // Get current user info - Ensure this returns mySchedules
         app.get("/api/user/current", ctx -> getCurrentUser(ctx, scheduleManager));
 
-        // User Login - Modified to load first schedule
+        // User Login - Modified to REMOVE auto-load
         app.post("/api/auth/login", ctx -> loginUser(ctx, scheduleManager));
 
-        // Placeholder: User Logout
-        // TODO: Implement actual session invalidation
+        // User Logout
         app.post("/api/auth/logout", ctx -> logoutUser(ctx, scheduleManager));
 
-        // Placeholder: Create New User
-        // TODO: Implement user creation logic
+        // Create New User
         app.post("/api/users", ctx -> createUser(ctx, scheduleManager));
     }
 
     private static void getCurrentUser(Context ctx, ScheduleManager scheduleManager) {
-        // --- VERY IMPORTANT ---
-        // This is a placeholder! It assumes a single, shared user in scheduleManager.
-        // In a real app, you need session management to get the user associated
-        // with the current request (ctx).
+        // This method is called AFTER successful login by loginUser,
+        // or directly via GET /api/user/current if a session exists (TODO).
         User currentUser = scheduleManager.user; // Get the user currently stored in the shared manager
 
         if (currentUser != null) {
-            // Avoid sending sensitive info like password hash
-            // Create a new User object or a DTO (Data Transfer Object) for the response
-            User publicUserInfo = new User(currentUser.name, currentUser.idNumber, currentUser.major, currentUser.year, ""); // Pass empty string for password to avoid hashing it again
-            publicUserInfo.mySchedules = currentUser.mySchedules; // Include schedules list if needed by frontend
+            // ***** START OF CHANGE *****
+            // Create a DTO (Data Transfer Object) or clean User object for the response.
+            // Ensure mySchedules is copied over.
+            User publicUserInfo = new User(currentUser.name, ""); // Use constructor that only takes name/pass (pass empty pass)
+            // Manually copy other non-sensitive fields if needed
+            publicUserInfo.idNumber = currentUser.idNumber;
+            publicUserInfo.major = currentUser.major;
+            publicUserInfo.year = currentUser.year;
+            // Crucially, copy the list of schedule file paths
+            publicUserInfo.mySchedules = (currentUser.mySchedules != null) ? new ArrayList<>(currentUser.mySchedules) : new ArrayList<>();
+            System.out.println("getCurrentUser: Sending user info for " + publicUserInfo.name + " with " + publicUserInfo.mySchedules.size() + " schedules.");
             ctx.json(publicUserInfo);
+            // ***** END OF CHANGE *****
         } else {
+            System.out.println("getCurrentUser: No user found in scheduleManager.");
             ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "No user logged in or found"));
         }
     }
 
     private static void loginUser(Context ctx, ScheduleManager scheduleManager) {
-        // Placeholder implementation
         try {
-            // In a real app, you'd get username/password from ctx.body() or form params
-            // Using query params as per original placeholder
             String username = ctx.queryParam("username");
             String password = ctx.queryParam("password");
 
@@ -65,116 +68,97 @@ public class UserController {
                 return;
             }
 
-            // Attempt login using ScheduleManager logic (which uses User.loadUserData and checkPassword)
+            // Attempt login using ScheduleManager logic
             // This sets scheduleManager.user if successful
-            boolean loggedIn = scheduleManager.loginUser(username, password);
+            boolean loggedIn = scheduleManager.loginUser(username.trim(), password);
 
             if (loggedIn) {
-                System.out.println("User logged in via API: " + username);
+                System.out.println("User logged in via API: " + username.trim());
+
+                // ***** START OF REMOVED CODE *****
+                // --- REMOVE Auto-load first schedule ---
+                // User loggedInUser = scheduleManager.user;
+                // if (loggedInUser != null && loggedInUser.mySchedules != null && !loggedInUser.mySchedules.isEmpty()) {
+                //    ... logic to load first schedule ...
+                // } else {
+                //    ... logic if no schedules ...
+                // }
+                // --- End of REMOVED Auto-load ---
+                // ***** END OF REMOVED CODE *****
 
                 // ***** START OF NEW CODE *****
-                // --- Auto-load first schedule ---
-                User loggedInUser = scheduleManager.user; // Get the user object set by loginUser
-                if (loggedInUser != null && loggedInUser.mySchedules != null && !loggedInUser.mySchedules.isEmpty()) {
-                    try {
-                        String firstSchedulePath = loggedInUser.mySchedules.get(0);
-                        // Extract schedule name from path (e.g., "users/testuser/schedules/MyFallSchedule.json" -> "MyFallSchedule")
-                        String scheduleName = firstSchedulePath.substring(
-                                firstSchedulePath.lastIndexOf('/') + 1,
-                                firstSchedulePath.lastIndexOf('.')
-                        );
-
-                        System.out.println("Attempting to auto-load schedule: " + scheduleName);
-                        Schedule loadedSchedule = scheduleManager.loadSchedule(scheduleName); // This loads into ScheduleManager.currentSchedule
-
-                        if (loadedSchedule != null) {
-                            scheduleManager.initializeUndoRedoAfterLoad(); // Reset history for the loaded schedule
-                            System.out.println("Successfully auto-loaded schedule: " + scheduleName);
-                        } else {
-                            System.err.println("Failed to auto-load schedule: " + scheduleName);
-                            // Don't treat this as a login failure, but log the issue.
-                            // Maybe clear currentSchedule just in case?
-                            ScheduleManager.currentSchedule = null;
-                        }
-                    } catch (Exception e) {
-                        System.err.println("Error extracting or loading first schedule path: " + loggedInUser.mySchedules.get(0));
-                        e.printStackTrace();
-                        ScheduleManager.currentSchedule = null; // Clear current schedule on error
-                    }
-                } else {
-                    System.out.println("User " + username + " has no saved schedules to auto-load.");
-                    ScheduleManager.currentSchedule = null; // Ensure no schedule is loaded if none exist
-                    scheduleManager.initializeUndoRedoAfterLoad(); // Still init history for potential new schedule actions
-                }
-                // --- End of Auto-load ---
+                // Explicitly clear any potentially lingering schedule from a previous user session
+                // in the static manager. The frontend will decide what to load.
+                ScheduleManager.currentSchedule = null;
+                // Initialize history for the new user session (empty initially)
+                scheduleManager.initializeUndoRedoAfterLoad();
+                System.out.println("Cleared current schedule on login for user: " + username.trim());
                 // ***** END OF NEW CODE *****
 
 
-                // TODO: Create a session for the user in Javalin (ctx.req().getSession(...) etc.)
+                // TODO: Create a session for the user in Javalin
 
-                // Respond with the user info (doesn't include the schedule data itself)
-                getCurrentUser(ctx, scheduleManager); // Reuse the method to send public user info
+                // Respond with the user info (including the schedule list)
+                getCurrentUser(ctx, scheduleManager); // This now sends mySchedules list
 
             } else {
-                // loginUser prints error messages, but we send a generic response
+                // loginUser prints error messages, send generic response
                 ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "Invalid username or password"));
             }
         } catch (Exception e) {
             System.err.println("Login error: " + e.getMessage());
-            e.printStackTrace(); // Print stack trace for debugging
+            e.printStackTrace();
             ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Login failed due to an unexpected error."));
         }
     }
 
     private static void logoutUser(Context ctx, ScheduleManager scheduleManager) {
-        // Placeholder implementation
         System.out.println("Logout requested via API for user: " + (scheduleManager.user != null ? scheduleManager.user.name : "none"));
 
-        // --- VERY IMPORTANT ---
-        // This only clears the shared user in scheduleManager.
-        // Real implementation needs to invalidate the specific user's session.
-        scheduleManager.logoutUser(); // Clears scheduleManager.user and saves data
+        // Clears scheduleManager.user and saves data
+        scheduleManager.logoutUser();
 
-        // ***** START OF NEW CODE *****
         // Also clear the static current schedule on logout
         ScheduleManager.currentSchedule = null;
-        // ***** END OF NEW CODE *****
+        // Clear history stacks as well
+        if (scheduleManager.editHistory != null) scheduleManager.editHistory.clear();
+        if (scheduleManager.undoneHistory != null) scheduleManager.undoneHistory.clear();
+        System.out.println("Cleared current schedule and history on logout.");
 
-
-        // TODO: Invalidate the actual Javalin session associated with the request (ctx)
+        // TODO: Invalidate the actual Javalin session
 
         ctx.status(200).json(Map.of("message", "Logout successful"));
     }
 
     private static void createUser(Context ctx, ScheduleManager scheduleManager) {
-        // Placeholder implementation
         try {
-            // In a real app, you'd get username/password from ctx.body()
-            String username = ctx.queryParam("username"); // Example: using query params
-            String password = ctx.queryParam("password"); // Example: using query params
+            String username = ctx.queryParam("username");
+            String password = ctx.queryParam("password");
 
             if (username == null || password == null || username.trim().isEmpty() || password.isEmpty()) {
                 ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Username and password required"));
                 return;
             }
 
-            User existingUser = User.loadUserData(username.trim()); // Trim username before checking/adding
+            User existingUser = User.loadUserData(username.trim());
             if (existingUser != null) {
                 ctx.status(409).json(new ScheduleMeApp.ErrorResponse("Conflict", "Username already exists"));
                 return;
             }
 
-            User newUser = User.addUser(username.trim(), password); // Trim username before adding
+            // User.addUser creates the user and saves their initial data (with empty schedule list)
+            User newUser = User.addUser(username.trim(), password);
             if (newUser != null) {
+                System.out.println("User created successfully via API: " + newUser.name);
                 ctx.status(201).json(Map.of("message", "User created successfully", "username", newUser.name));
             } else {
-                // addUser might return null if saving failed, though current implementation returns existing user
+                // This case might be redundant if loadUserData check works, but good practice
                 ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to create user (maybe save error?)"));
             }
 
         } catch (Exception e) {
             System.err.println("User creation error: " + e.getMessage());
-            e.printStackTrace(); // Print stack trace
+            e.printStackTrace();
             ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "User creation failed due to an unexpected error."));
         }
     }

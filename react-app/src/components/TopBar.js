@@ -5,10 +5,19 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
-// ***** START OF NEW CODE *****
+import CircularProgress from '@mui/material/CircularProgress'; // For save indicator
+import SaveIcon from '@mui/icons-material/Save'; // Import Save icon
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // Import Check icon
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'; // Import Error icon
+import Tooltip from '@mui/material/Tooltip'; // To show save status message
+
 // Import the useAuth hook
 import { useAuth } from '../context/AuthContext';
+// ***** START OF NEW CODE *****
+// Import the useSchedule hook
+import { useSchedule } from '../context/ScheduleContext';
 // ***** END OF NEW CODE *****
+
 
 // Optional: Import an icon if you like
 // import SchoolIcon from '@mui/icons-material/School';
@@ -19,41 +28,32 @@ import { useAuth } from '../context/AuthContext';
  * Displays the application title, user information from AuthContext, and action buttons.
  */
 const TopBar = () => {
-  // --- State for User Information (Placeholder/Future Implementation) ---
-  // We'll use state to hold user data eventually. For now, it's null.
-  // const [currentUser, setCurrentUser] = useState(null); // Removed, using AuthContext
-  // const [isLoading, setIsLoading] = useState(false); // Removed, using AuthContext
-  // const [error, setError] = useState(null); // Removed, using AuthContext
-
-  // ***** START OF NEW CODE *****
   // Get authentication state and functions from the context
-  const { currentUser, loading, logout } = useAuth(); // Destructure what's needed
+  const { currentUser, loading: authLoading, logout } = useAuth(); // Destructure what's needed
+  // ***** START OF NEW CODE *****
+  // Get schedule context for saving
+  const { saveSchedule, saveStatus, scheduleData } = useSchedule();
   // ***** END OF NEW CODE *****
 
 
-  // --- Effect to Fetch User Data (Placeholder/Future Implementation) ---
-  /*
-  useEffect(() => {
-    // This function would fetch user data from your backend API
-    // Now potentially handled by a higher-level component or AuthProvider itself
-  }, []);
-  */
-
-  // --- Placeholder Action Handlers ---
-  // These functions will be replaced with actual logic later (e.g., calling logout API)
+  // --- Action Handlers ---
   const handleLogout = () => {
     console.log("Logout button clicked");
-    // ***** START OF NEW CODE *****
     // Call the logout function from the context
     logout();
-    // ***** END OF NEW CODE *****
-    // setCurrentUser(null); // Removed, context handles state
   };
 
   const handleSettings = () => {
     console.log("Settings button clicked (placeholder)");
     // TODO: Implement navigation or modal display for settings
   };
+
+  // ***** START OF NEW CODE *****
+  const handleSave = () => {
+      console.log("Save button clicked");
+      saveSchedule(); // Call save function from context
+  };
+  // ***** END OF NEW CODE *****
 
 
   return (
@@ -74,22 +74,50 @@ const TopBar = () => {
         <Box sx={{ flexGrow: 1 }} />
 
         {/* --- User Info and Actions --- */}
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}> {/* Added gap */}
           {/* Display loading state, error, user info, or login prompt */}
-          {/* ***** START OF NEW CODE ***** */}
-          {/* Use loading state from context if needed */}
-          {/* {loading && <Typography variant="body2" sx={{ mr: 2 }}>Loading...</Typography>} */}
+          {authLoading && <Typography variant="body2" sx={{ mr: 2 }}>Loading...</Typography>}
 
-          {/* Check currentUser from context */}
           {currentUser ? (
             <>
               {/* Display Welcome message if user is loaded */}
-              <Typography variant="body1" sx={{ mr: 2 }}>
-                {/* Use name from currentUser object */}
+              <Typography variant="body1" sx={{ mr: 1 }}> {/* Reduced margin */}
                 Welcome, {currentUser.name || 'User'}!
               </Typography>
+
+              {/* ***** START OF NEW CODE ***** */}
+              {/* Save Button */}
+              <Tooltip title={saveStatus.error ? `Save Error: ${saveStatus.error}` : (saveStatus.success ? "Schedule Saved!" : "Save Current Schedule")}>
+                {/* Wrap button in span for tooltip when disabled */}
+                <span>
+                    <Button
+                        color="inherit"
+                        variant="outlined" // Make it stand out slightly
+                        onClick={handleSave}
+                        disabled={saveStatus.saving || !scheduleData || scheduleData.name === 'No Schedule Loaded'} // Disable while saving or if no schedule
+                        startIcon={
+                            saveStatus.saving ? <CircularProgress size={20} color="inherit" /> :
+                            saveStatus.success ? <CheckCircleOutlineIcon color="success"/> :
+                            saveStatus.error ? <ErrorOutlineIcon color="error"/> :
+                            <SaveIcon />
+                        }
+                        sx={{
+                            mr: 1, // Reduced margin
+                            borderColor: 'rgba(255, 255, 255, 0.5)', // Lighter border
+                            '&:hover': {
+                                borderColor: 'rgba(255, 255, 255, 0.8)',
+                                bgcolor: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }}
+                    >
+                        {saveStatus.saving ? 'Saving...' : (saveStatus.success ? 'Saved' : (saveStatus.error ? 'Error' : 'Save'))}
+                    </Button>
+                 </span>
+              </Tooltip>
+              {/* ***** END OF NEW CODE ***** */}
+
               {/* Settings Button (Placeholder) */}
-              <Button color="inherit" onClick={handleSettings}>Settings</Button>
+              {/* <Button color="inherit" onClick={handleSettings}>Settings</Button> */}
               {/* Logout Button - Uses handleLogout which calls context logout */}
               <Button color="inherit" onClick={handleLogout}>Logout</Button>
             </>
@@ -103,7 +131,6 @@ const TopBar = () => {
               {/* <Button color="inherit" component={Link} to="/login">Login</Button> */}
              </>
           )}
-          {/* ***** END OF NEW CODE ***** */}
         </Box>
       </Toolbar>
     </AppBar>
