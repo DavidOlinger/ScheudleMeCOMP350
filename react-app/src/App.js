@@ -12,6 +12,11 @@ import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
 // import SavedSchedulesPage from './pages/SavedSchedulesPage'; // Example for a future page
 
+// ***** START OF NEW CODE *****
+// Import the AuthProvider
+import { AuthProvider } from './context/AuthContext';
+// ***** END OF NEW CODE *****
+
 /**
  * App Component
  * The root component of the React application.
@@ -39,30 +44,44 @@ function App() {
 
         {/* BrowserRouter enables routing capabilities for the application. */}
         <Router>
-          {/* Routes component acts as a container for all individual Route definitions. */}
-          <Routes>
-            {/*
-             * Route definition:
-             * - 'path' specifies the URL path.
-             * - 'element' specifies the React component to render when the path matches.
-             * This route renders MainPage when the user visits the root URL ('/').
-             */}
-            <Route path="/" element={<MainPage />} />
+          {/* ***** START OF NEW CODE ***** */}
+          {/* Wrap the Routes with AuthProvider to make auth state available */}
+          <AuthProvider>
+          {/* ***** END OF NEW CODE ***** */}
 
-            {/* Route for the login page */}
-            <Route path="/login" element={<LoginPage />} />
+            {/* Routes component acts as a container for all individual Route definitions. */}
+            <Routes>
+              {/*
+               * Route definition:
+               * - 'path' specifies the URL path.
+               * - 'element' specifies the React component to render when the path matches.
+               * This route renders MainPage when the user visits the root URL ('/').
+               * TODO: Consider making this a protected route later.
+               */}
+              <Route path="/" element={<MainPage />} />
 
-            {/*
-             * Example of how you would add another route for a different page:
-             * <Route path="/saved-schedules" element={<SavedSchedulesPage />} />
-             */}
+              {/* Route for the login page */}
+              {/* Make login the default landing page if no user is logged in?
+                  For now, keeping '/' as main, '/login' explicit.
+                  You could swap these or add redirect logic later.
+              */}
+              <Route path="/login" element={<LoginPage />} />
+
+              {/*
+               * Example of how you would add another route for a different page:
+               * <Route path="/saved-schedules" element={<SavedSchedulesPage />} />
+               */}
 
 
 
-            {/*catch-all route for 404 Not Found page*/}
-            <Route path="*" element={<NotFoundPage />} />
+              {/*catch-all route for 404 Not Found page*/}
+              <Route path="*" element={<NotFoundPage />} />
 
-          </Routes>
+            </Routes>
+
+          {/* ***** START OF NEW CODE ***** */}
+          </AuthProvider>
+          {/* ***** END OF NEW CODE ***** */}
         </Router>
       </>
     // </ThemeProvider> // Closing tag for ThemeProvider if used
