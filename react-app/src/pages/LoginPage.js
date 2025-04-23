@@ -1,6 +1,11 @@
 // src/pages/LoginPage.js
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Hook for navigation after login
+// ***** START OF NEW CODE *****
+// Remove useNavigate import, as navigation will be handled by AuthContext
+// import { useNavigate } from 'react-router-dom';
+// Import the useAuth hook
+import { useAuth } from '../context/AuthContext';
+// ***** END OF NEW CODE *****
 
 // Import MUI components for the form layout and elements
 import Avatar from '@mui/material/Avatar';
@@ -24,7 +29,12 @@ import Layout from '../components/Layout';
  */
 function LoginPage() {
   // Hook to programmatically navigate the user (e.g., after successful login)
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // Removed, using AuthContext now
+
+  // ***** START OF NEW CODE *****
+  // Get the login function from the AuthContext
+  const auth = useAuth();
+  // ***** END OF NEW CODE *****
 
   // State variables for form inputs
   const [username, setUsername] = useState('');
@@ -45,19 +55,11 @@ function LoginPage() {
 
     console.log('Attempting login with:', { username, password });
 
-    // --- Placeholder for API Call ---
+    // --- API Call ---
     try {
       // Construct the URL for the backend login endpoint
       // IMPORTANT: Use your actual backend URL
       const apiUrl = `http://localhost:7070/api/auth/login?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
-
-      // Your backend currently uses query parameters for login based on UserController
-      // If you change backend to expect JSON body, adjust fetch options accordingly:
-      // const response = await fetch('http://localhost:7070/api/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ username, password })
-      // });
 
       const response = await fetch(apiUrl, { method: 'POST' }); // Using POST as defined in UserController
 
@@ -65,18 +67,20 @@ function LoginPage() {
         const errorData = await response.json().catch(() => ({ // Try to parse error
              message: `Login failed. Status: ${response.status}`
         }));
-        throw new Error(errorData.message || `Login failed. Status: ${response.status}`);
+        // Use the error message from backend if available
+        throw new Error(errorData.error || errorData.message || `Login failed. Status: ${response.status}`);
       }
 
-      // Assuming successful login returns user data or a success message
-      const data = await response.json();
-      console.log('Login successful:', data);
+      // Assuming successful login returns user data
+      const userData = await response.json();
+      console.log('Login successful, user data received:', userData);
 
-      // TODO: Handle successful login:
-      // 1. Store user session/token (if applicable)
-      // 2. Update global user state (e.g., using Context or state management library)
-      // 3. Navigate the user to the main page or dashboard
-      navigate('/'); // Navigate to the main page ('/') after successful login
+      // ***** START OF NEW CODE *****
+      // Call the login function from AuthContext, passing the received user data
+      auth.login(userData);
+      // Navigation is now handled within auth.login()
+      // navigate('/'); // Removed
+      // ***** END OF NEW CODE *****
 
     } catch (err) {
       console.error("Login API call failed:", err);

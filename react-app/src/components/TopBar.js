@@ -1,10 +1,14 @@
 // src/components/TopBar.js
-import React, { useState, useEffect } from 'react';
+import React from 'react'; // Removed useState, useEffect as we use context now
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
+// ***** START OF NEW CODE *****
+// Import the useAuth hook
+import { useAuth } from '../context/AuthContext';
+// ***** END OF NEW CODE *****
 
 // Optional: Import an icon if you like
 // import SchoolIcon from '@mui/icons-material/School';
@@ -12,50 +16,38 @@ import Box from '@mui/material/Box';
 /**
  * TopBar Component
  * Renders the main application navigation bar at the top of the screen.
- * Displays the application title, placeholder user information, and action buttons.
+ * Displays the application title, user information from AuthContext, and action buttons.
  */
 const TopBar = () => {
   // --- State for User Information (Placeholder/Future Implementation) ---
   // We'll use state to hold user data eventually. For now, it's null.
-  const [currentUser, setCurrentUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(false); // To show loading state
-  const [error, setError] = useState(null); // To show errors
+  // const [currentUser, setCurrentUser] = useState(null); // Removed, using AuthContext
+  // const [isLoading, setIsLoading] = useState(false); // Removed, using AuthContext
+  // const [error, setError] = useState(null); // Removed, using AuthContext
+
+  // ***** START OF NEW CODE *****
+  // Get authentication state and functions from the context
+  const { currentUser, loading, logout } = useAuth(); // Destructure what's needed
+  // ***** END OF NEW CODE *****
+
 
   // --- Effect to Fetch User Data (Placeholder/Future Implementation) ---
   /*
   useEffect(() => {
     // This function would fetch user data from your backend API
-    const fetchUser = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // Replace with your actual API endpoint and fetch logic (using fetch or axios)
-        const response = await fetch('/api/user/current'); // Example endpoint
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setCurrentUser(data); // Assuming the API returns user object { name: '...' }
-      } catch (err) {
-        console.error("Failed to fetch user:", err);
-        setError("Could not load user info.");
-        setCurrentUser(null); // Clear user on error
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    // fetchUser(); // Call the function - Uncomment when API is ready
-
-  }, []); // Empty dependency array means this runs once on component mount
+    // Now potentially handled by a higher-level component or AuthProvider itself
+  }, []);
   */
 
   // --- Placeholder Action Handlers ---
   // These functions will be replaced with actual logic later (e.g., calling logout API)
   const handleLogout = () => {
-    console.log("Logout button clicked (placeholder)");
-    // TODO: Implement actual logout logic (call API, clear session/token, redirect)
-    setCurrentUser(null); // Simulate logout for placeholder
+    console.log("Logout button clicked");
+    // ***** START OF NEW CODE *****
+    // Call the logout function from the context
+    logout();
+    // ***** END OF NEW CODE *****
+    // setCurrentUser(null); // Removed, context handles state
   };
 
   const handleSettings = () => {
@@ -84,19 +76,21 @@ const TopBar = () => {
         {/* --- User Info and Actions --- */}
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {/* Display loading state, error, user info, or login prompt */}
-          {isLoading ? (
-            <Typography variant="body2" sx={{ mr: 2 }}>Loading user...</Typography>
-          ) : error ? (
-             <Typography variant="body2" color="error" sx={{ mr: 2 }}>{error}</Typography>
-          ) : currentUser ? (
+          {/* ***** START OF NEW CODE ***** */}
+          {/* Use loading state from context if needed */}
+          {/* {loading && <Typography variant="body2" sx={{ mr: 2 }}>Loading...</Typography>} */}
+
+          {/* Check currentUser from context */}
+          {currentUser ? (
             <>
               {/* Display Welcome message if user is loaded */}
               <Typography variant="body1" sx={{ mr: 2 }}>
-                Welcome, {currentUser.name || 'User'}! {/* Use fetched name or default */}
+                {/* Use name from currentUser object */}
+                Welcome, {currentUser.name || 'User'}!
               </Typography>
               {/* Settings Button (Placeholder) */}
               <Button color="inherit" onClick={handleSettings}>Settings</Button>
-              {/* Logout Button (Placeholder) */}
+              {/* Logout Button - Uses handleLogout which calls context logout */}
               <Button color="inherit" onClick={handleLogout}>Logout</Button>
             </>
           ) : (
@@ -105,10 +99,11 @@ const TopBar = () => {
                <Typography variant="body1" sx={{ mr: 2 }}>
                  Guest
                </Typography>
-              {/* You might show a Login button here instead */}
-              {/* <Button color="inherit">Login</Button> */}
+              {/* You might show a Login button here instead, linking to /login */}
+              {/* <Button color="inherit" component={Link} to="/login">Login</Button> */}
              </>
           )}
+          {/* ***** END OF NEW CODE ***** */}
         </Box>
       </Toolbar>
     </AppBar>
