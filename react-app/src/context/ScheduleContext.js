@@ -10,7 +10,7 @@ const ScheduleContext = createContext(null);
  * Manages the state of the currently active schedule (fetching, adding, removing, saving, loading, creating).
  */
 export const ScheduleProvider = ({ children }) => {
-  const { currentUser } = useAuth(); // Get user status from AuthContext
+  const { currentUser, updateCurrentUser } = useAuth(); // Get user status and update function
 
   const [scheduleData, setScheduleData] = useState(null); // Holds the { name: '...', events: [...] } object
   const [isLoading, setIsLoading] = useState(false); // General loading for fetch/add/remove
@@ -18,6 +18,24 @@ export const ScheduleProvider = ({ children }) => {
   const [saveStatus, setSaveStatus] = useState({ saving: false, error: null, success: false });
   const [controlError, setControlError] = useState(null); // Specific errors for load/create actions
   const [isControlLoading, setIsControlLoading] = useState(false); // Specific loading for load/create
+
+
+  // Helper function to parse JSON or throw detailed error
+  const parseJsonResponse = async (response) => {
+      const text = await response.text(); // Get raw text first
+      try {
+          if (!text) { // Handle empty response body
+              // Decide how to handle empty responses - maybe return null or a specific object
+              // For now, let's throw an error for unexpected empty bodies
+              throw new Error(`Received empty response body. Status: ${response.status}`);
+          }
+          return JSON.parse(text); // Try to parse as JSON
+      } catch (e) {
+          console.error("Failed to parse JSON response. Raw text:", text);
+          // Throw a more informative error
+          throw new Error(`Expected JSON, but received non-JSON response. Status: ${response.status}. Response body starts with: ${text.substring(0, 100)}`);
+      }
+  };
 
 
   // Function to fetch the currently active schedule from the backend
@@ -42,44 +60,23 @@ export const ScheduleProvider = ({ children }) => {
       const apiUrl = 'http://localhost:7070/api/schedule/current';
       const response = await fetch(apiUrl);
 
-      // ***** START OF CHANGE *****
-      // Helper function to parse JSON or throw detailed error
-      const parseJsonResponse = async (response) => {
-          const text = await response.text(); // Get raw text first
-          try {
-              return JSON.parse(text); // Try to parse as JSON
-          } catch (e) {
-              console.error("Failed to parse JSON response. Raw text:", text);
-              // Throw a more informative error
-              throw new Error(`Expected JSON, but received non-JSON response. Status: ${response.status}. Response body starts with: ${text.substring(0, 100)}`);
-          }
-      };
-      // ***** END OF CHANGE *****
-
       if (!response.ok) {
-        // ***** START OF CHANGE *****
-        // Try to parse error JSON, but handle non-JSON responses gracefully
         let errorData;
         try {
             errorData = await parseJsonResponse(response);
         } catch (parseError) {
-            // If parsing failed (e.g., received HTML), use the parsing error message
              throw parseError;
         }
-        // ***** END OF CHANGE *****
 
         if (response.status === 404) {
           console.log("ScheduleContext: No active schedule found on backend (404). Triggering select/create state.");
-          setScheduleData({ name: 'No Schedule Loaded', events: [] });
+          setScheduleData({ name: 'No Schedule Loaded', events: [] }); // Set specific state for no schedule
           setError(null);
         } else {
           throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
         }
       } else {
-        // ***** START OF CHANGE *****
-        // Use the helper for successful responses too
         const data = await parseJsonResponse(response);
-        // ***** END OF CHANGE *****
         console.log("ScheduleContext: Active schedule data received:", data);
         setScheduleData({ ...data, events: Array.isArray(data.events) ? data.events : [] });
       }
@@ -123,17 +120,6 @@ export const ScheduleProvider = ({ children }) => {
         body: JSON.stringify({ courseCode: course.courseCode }),
       });
 
-      // ***** START OF CHANGE *****
-      // Re-use the JSON parsing helper
-       const parseJsonResponse = async (response) => {
-          const text = await response.text();
-          try { return JSON.parse(text); }
-          catch (e) {
-              console.error("Failed to parse JSON response. Raw text:", text);
-              throw new Error(`Expected JSON, but received non-JSON response. Status: ${response.status}. Response body starts with: ${text.substring(0, 100)}`);
-          }
-      };
-
       if (!response.ok) {
         let errorData;
         try { errorData = await parseJsonResponse(response); }
@@ -147,7 +133,6 @@ export const ScheduleProvider = ({ children }) => {
       }
 
       const updatedSchedule = await parseJsonResponse(response);
-      // ***** END OF CHANGE *****
 
       console.log("ScheduleContext: Course added, updated schedule received:", updatedSchedule);
       setScheduleData({ ...updatedSchedule, events: Array.isArray(updatedSchedule.events) ? updatedSchedule.events : [] });
@@ -156,6 +141,8 @@ export const ScheduleProvider = ({ children }) => {
     } catch (err) {
       console.error("ScheduleContext: Failed to add course:", err);
       setError(err.message || "Could not add course.");
+      // Optionally refetch schedule on error? Or just show error.
+      // fetchSchedule();
     } finally {
       setIsLoading(false);
     }
@@ -181,16 +168,6 @@ export const ScheduleProvider = ({ children }) => {
        const apiUrl = `http://localhost:7070/api/schedule/current/remove/${course.courseCode}`;
        const response = await fetch(apiUrl, { method: 'DELETE' });
 
-        // ***** START OF CHANGE *****
-        const parseJsonResponse = async (response) => { /* ... same helper as above ... */
-            const text = await response.text();
-            try { return JSON.parse(text); }
-            catch (e) {
-                console.error("Failed to parse JSON response. Raw text:", text);
-                throw new Error(`Expected JSON, but received non-JSON response. Status: ${response.status}. Response body starts with: ${text.substring(0, 100)}`);
-            }
-        };
-
         if (!response.ok) {
             let errorData;
             try { errorData = await parseJsonResponse(response); }
@@ -199,7 +176,6 @@ export const ScheduleProvider = ({ children }) => {
         }
 
         const updatedSchedule = await parseJsonResponse(response);
-        // ***** END OF CHANGE *****
 
         console.log("ScheduleContext: Course removed, updated schedule received:", updatedSchedule);
         setScheduleData({ ...updatedSchedule, events: Array.isArray(updatedSchedule.events) ? updatedSchedule.events : [] });
@@ -207,6 +183,8 @@ export const ScheduleProvider = ({ children }) => {
     } catch (err) {
          console.error("ScheduleContext: Failed to remove course:", err);
          setError(err.message || "Could not remove course.");
+         // Optionally refetch schedule on error?
+         // fetchSchedule();
     } finally {
         setIsLoading(false);
     }
@@ -231,16 +209,6 @@ export const ScheduleProvider = ({ children }) => {
       const apiUrl = 'http://localhost:7070/api/schedules/save';
       const response = await fetch(apiUrl, { method: 'POST' });
 
-        // ***** START OF CHANGE *****
-         const parseJsonResponse = async (response) => { /* ... same helper as above ... */
-            const text = await response.text();
-            try { return JSON.parse(text); }
-            catch (e) {
-                console.error("Failed to parse JSON response. Raw text:", text);
-                throw new Error(`Expected JSON, but received non-JSON response. Status: ${response.status}. Response body starts with: ${text.substring(0, 100)}`);
-            }
-        };
-
         if (!response.ok) {
             let errorData;
             try { errorData = await parseJsonResponse(response); }
@@ -249,22 +217,23 @@ export const ScheduleProvider = ({ children }) => {
         }
 
         const result = await parseJsonResponse(response);
-        // ***** END OF CHANGE *****
 
       console.log("ScheduleContext: Save successful:", result.message);
       setSaveStatus({ saving: false, error: null, success: true });
+      // Reset success indicator after a delay
       setTimeout(() => setSaveStatus(prev => ({ ...prev, success: false })), 3000);
     } catch (err) {
       console.error("ScheduleContext: Failed to save schedule:", err);
       setSaveStatus({ saving: false, error: err.message || "Could not save schedule.", success: false });
     }
+    // No finally block needed to set saving: false, as it's done in both try/catch
   };
 
   // Load schedule - Apply similar robust JSON parsing
   const loadSchedule = async (scheduleName) => {
-     if (!currentUser) { /* ... */ return; }
-     if (!scheduleName || !scheduleName.trim()) { /* ... */ return; }
-     if (isLoading || saveStatus.saving || isControlLoading) { /* ... */ return; }
+     if (!currentUser) { setControlError("Not logged in."); return; }
+     if (!scheduleName || !scheduleName.trim()) { setControlError("Please select a schedule name."); return; }
+     if (isLoading || saveStatus.saving || isControlLoading) { console.log("ScheduleContext: Already processing, cannot load schedule now."); return; }
     console.log("ScheduleContext: Attempting to load schedule:", scheduleName);
     setIsControlLoading(true);
     setControlError(null);
@@ -275,16 +244,6 @@ export const ScheduleProvider = ({ children }) => {
       const apiUrl = `http://localhost:7070/api/schedules/load/${encodeURIComponent(scheduleName.trim())}`;
       const response = await fetch(apiUrl, { method: 'PUT' });
 
-        // ***** START OF CHANGE *****
-         const parseJsonResponse = async (response) => { /* ... same helper as above ... */
-            const text = await response.text();
-            try { return JSON.parse(text); }
-            catch (e) {
-                console.error("Failed to parse JSON response. Raw text:", text);
-                throw new Error(`Expected JSON, but received non-JSON response. Status: ${response.status}. Response body starts with: ${text.substring(0, 100)}`);
-            }
-        };
-
         if (!response.ok) {
             let errorData;
             try { errorData = await parseJsonResponse(response); }
@@ -293,29 +252,29 @@ export const ScheduleProvider = ({ children }) => {
         }
 
         const loadedData = await parseJsonResponse(response);
-        // ***** END OF CHANGE *****
 
       console.log("ScheduleContext: Schedule loaded successfully:", loadedData);
       setScheduleData({ ...loadedData, events: Array.isArray(loadedData.events) ? loadedData.events : [] });
-      setControlError(null);
+      setControlError(null); // Clear control-specific error on success
 
     } catch (err) {
       console.error("ScheduleContext: Failed to load schedule:", err);
       setControlError(err.message || "Could not load the selected schedule.");
+      // Do not clear scheduleData here, keep the previously loaded one if load fails
     } finally {
       setIsControlLoading(false);
     }
   };
 
-  // Create new schedule - Apply similar robust JSON parsing
+  // Create new schedule - MODIFIED to update AuthContext
   const createNewSchedule = async (scheduleName) => {
-     if (!currentUser) { /* ... */ return; }
-     if (!scheduleName || !scheduleName.trim()) { /* ... */ return; }
-     if (isLoading || saveStatus.saving || isControlLoading) { /* ... */ return; }
+     if (!currentUser) { setControlError("Not logged in."); return; }
+     if (!scheduleName || !scheduleName.trim()) { setControlError("Please enter a schedule name."); return; }
+     if (isLoading || saveStatus.saving || isControlLoading) { console.log("ScheduleContext: Already processing, cannot create schedule now."); return; }
     console.log("ScheduleContext: Attempting to create schedule:", scheduleName);
     setIsControlLoading(true);
     setControlError(null);
-    setError(null);
+    setError(null); // Clear general errors too
     setSaveStatus({ saving: false, error: null, success: false });
 
     try {
@@ -326,38 +285,45 @@ export const ScheduleProvider = ({ children }) => {
             body: JSON.stringify({ name: scheduleName.trim() })
         });
 
-        // ***** START OF CHANGE *****
-         const parseJsonResponse = async (response) => { /* ... same helper as above ... */
-            const text = await response.text();
-            try { return JSON.parse(text); }
-            catch (e) {
-                console.error("Failed to parse JSON response. Raw text:", text);
-                throw new Error(`Expected JSON, but received non-JSON response. Status: ${response.status}. Response body starts with: ${text.substring(0, 100)}`);
-            }
-        };
-
          if (!response.ok) {
             let errorData;
             try { errorData = await parseJsonResponse(response); }
             catch (parseError) { throw parseError; }
 
-             if (response.status === 409) {
+             if (response.status === 409) { // Conflict (name exists)
                  throw new Error(errorData.error || errorData.message || "A schedule with this name already exists.");
              } else {
                 throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
              }
         }
 
-        const newData = await parseJsonResponse(response);
-        // ***** END OF CHANGE *****
+        // ***** START OF MODIFICATION *****
+        // Expecting { schedule: { ... }, user: { ... } } from backend
+        const responseData = await parseJsonResponse(response);
+        const newSchedule = responseData.schedule;
+        const updatedUser = responseData.user;
 
-        console.log("ScheduleContext: New schedule created successfully:", newData);
-        setScheduleData({ ...newData, events: Array.isArray(newData.events) ? newData.events : [] });
-        setControlError(null);
+        if (!newSchedule || !updatedUser) {
+            throw new Error("Invalid response received from server after creating schedule.");
+        }
+        // ***** END OF MODIFICATION *****
+
+        console.log("ScheduleContext: New schedule created successfully:", newSchedule);
+        console.log("ScheduleContext: Updated user data received:", updatedUser);
+
+        // Update schedule context state
+        setScheduleData({ ...newSchedule, events: Array.isArray(newSchedule.events) ? newSchedule.events : [] });
+        setControlError(null); // Clear control error on success
+
+        // ***** START OF MODIFICATION *****
+        // Update auth context state with the latest user data (including the new schedule list)
+        updateCurrentUser(updatedUser);
+        // ***** END OF MODIFICATION *****
 
     } catch (err) {
         console.error("ScheduleContext: Failed to create schedule:", err);
         setControlError(err.message || "Could not create the new schedule.");
+        // Don't clear scheduleData here
     } finally {
         setIsControlLoading(false);
     }
