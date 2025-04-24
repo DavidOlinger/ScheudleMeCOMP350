@@ -16,17 +16,16 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
 
   // Function to handle user login
-  // It receives user data (likely from the API response)
   const login = (userData) => {
     console.log("AuthContext: Setting current user:", userData);
-    // Basic validation: ensure we have at least a name
     if (userData && userData.name) {
         setCurrentUser(userData);
-        // Navigate to the main page after successful login
-        navigate('/');
+        // ***** START OF CHANGE *****
+        // Navigate to the editor page after successful login
+        navigate('/editor');
+        // ***** END OF CHANGE *****
     } else {
         console.error("AuthContext: Invalid user data received for login.", userData);
-        // Handle error state if necessary
     }
   };
 
@@ -34,30 +33,27 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     setLoading(true);
     console.log("AuthContext: Logging out user.");
-    // ***** START OF BACKEND INTERACTION *****
     try {
-        // Call the backend logout endpoint
         const response = await fetch('http://localhost:7070/api/auth/logout', { method: 'POST' });
         if (!response.ok) {
-            // Handle potential errors during backend logout if needed
             console.error("Backend logout failed:", response.status);
         }
     } catch (error) {
         console.error("Error calling backend logout:", error);
     }
-    // ***** END OF BACKEND INTERACTION *****
 
-    // Clear the user state regardless of backend success for frontend responsiveness
     setCurrentUser(null);
     setLoading(false);
-    // Navigate to the login page after logout
-    navigate('/login');
+    // ***** START OF CHANGE *****
+    // Navigate to the login page (now the root '/') after logout
+    navigate('/');
+    // ***** END OF CHANGE *****
   };
 
   // Value provided by the context
   const value = {
     currentUser,
-    loading, // Optional: expose loading state
+    loading,
     login,
     logout,
   };
