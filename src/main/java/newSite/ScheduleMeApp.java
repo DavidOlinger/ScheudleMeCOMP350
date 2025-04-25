@@ -92,11 +92,11 @@ public class ScheduleMeApp {
         app.exception(Exception.class, (e, ctx) -> {
             System.err.println("Unhandled exception: " + e.getMessage());
             e.printStackTrace();
-            // ***** START OF CHANGE *****
+
             // Provide a more specific error message if possible, otherwise generic
             String errorMessage = e.getMessage() != null ? e.getMessage() : "An unexpected error occurred.";
             ctx.status(500).json(new ErrorResponse("Internal Server Error", errorMessage));
-            // ***** END OF CHANGE *****
+
         });
 
         // Removed the app.error(404, ...) handler block

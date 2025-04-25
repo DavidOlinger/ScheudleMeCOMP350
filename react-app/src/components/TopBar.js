@@ -67,7 +67,7 @@ const TopBar = () => {
 
         {/* Application Title */}
         <Typography variant="h6" component="div" sx={{ mr: 2 }}>
-          Schedule Builder {/* Replace with your actual app name */}
+          ScheduleMe {/* Replace with your actual app name */}
         </Typography>
 
         {/* This Box acts as a spacer, pushing subsequent items to the right */}
