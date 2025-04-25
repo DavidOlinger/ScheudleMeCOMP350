@@ -12,7 +12,7 @@ import ScheduleView from '../components/ScheduleView';
 import ScheduleControlPanel from '../components/ScheduleControlPanel';
 
 // Define the width for the sidebar
-const SIDEBAR_WIDTH = 420; // Adjust this value as needed (in pixels)
+const SIDEBAR_WIDTH = 600; // Adjust this value as needed (in pixels)
 
 /**
  * MainPage Component (Updated)

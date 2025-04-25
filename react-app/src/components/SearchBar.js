@@ -1,5 +1,5 @@
 // src/components/SearchBar.js
-import React, { useState, useRef, useCallback, useEffect } from 'react'; // Added useEffect
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import List from '@mui/material/List';
@@ -13,24 +13,29 @@ import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import Paper from '@mui/material/Paper'; // For Popper content background
-import Popper from '@mui/material/Popper'; // The overlay component
-import ClickAwayListener from '@mui/material/ClickAwayListener'; // To close Popper on outside click
-import Fade from '@mui/material/Fade'; // Optional: Add transition
+import FilterListIcon from '@mui/icons-material/FilterList'; // Icon for filter button
+import Badge from '@mui/material/Badge'; // To show if filters are active
+import Paper from '@mui/material/Paper';
+import Popper from '@mui/material/Popper';
+import ClickAwayListener from '@mui/material/ClickAwayListener';
+import Fade from '@mui/material/Fade';
 
 // Import the useSchedule hook
 // Assuming you have a ScheduleContext set up like in previous examples
 // If not, you might need to pass addCourse down as a prop or adjust this.
 import { useSchedule } from '../context/ScheduleContext';
+// Import the new Filters component
+import SearchFilters from './SearchFilters'; // Assuming SearchFilters.js is in the same directory
 
 /**
  * SearchBar Component (Updated)
- * Provides course search input and displays results in an overlay Popper.
+ * Provides course search input, filter options, and displays results in an overlay Popper.
  */
 const SearchBar = () => {
   // Assuming useSchedule hook provides these values
   // Provide default fallback functions/values if context might not be ready
   const scheduleContext = useSchedule();
+  // Use default functions if context is not available to prevent errors
   const addCourse = scheduleContext?.addCourse || (() => console.error("addCourse function not available from context."));
   const isScheduleLoading = scheduleContext?.isLoading || false;
   const scheduleError = scheduleContext?.error || null;
@@ -42,49 +47,67 @@ const SearchBar = () => {
   const [searchError, setSearchError] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
 
-  // --- Popper State ---
-  const [openResults, setOpenResults] = useState(false); // Controls Popper visibility
-  const anchorElRef = useRef(null); // Ref to anchor the Popper to (the TextField)
-  const [popperWidth, setPopperWidth] = useState(0); // State to store anchor width
+  // --- Filter State ---
+  const [filters, setFilters] = useState({
+      startTime: '', // e.g., "09:00"
+      endTime: '',   // e.g., "17:30"
+      days: [],      // e.g., ['M', 'W', 'F']
+  });
+  const [activeFilterCount, setActiveFilterCount] = useState(0);
 
-  // --- Update Popper Width ---
+  // --- Popper State (Results) ---
+  const [openResults, setOpenResults] = useState(false);
+  const searchAnchorElRef = useRef(null); // Anchor for results popper (TextField's wrapper div)
+  const [resultsPopperWidth, setResultsPopperWidth] = useState(0);
+
+  // --- Popper State (Filters) ---
+  const [openFilters, setOpenFilters] = useState(false);
+  const filterAnchorElRef = useRef(null); // Anchor for filter popper (Filter Button's container)
+
+  // --- Update Popper Widths ---
   useEffect(() => {
-    // Function to update popper width based on anchor element
-    const updateWidth = () => {
-      if (anchorElRef.current) {
-        setPopperWidth(anchorElRef.current.clientWidth);
-      }
+    const updateResultsWidth = () => {
+      // Anchor is the div wrapping the TextField now
+      if (searchAnchorElRef.current) setResultsPopperWidth(searchAnchorElRef.current.clientWidth);
     };
-    // Update width initially and on resize when popper is open
     if (openResults) {
-        updateWidth();
-        window.addEventListener('resize', updateWidth);
+        updateResultsWidth();
+        window.addEventListener('resize', updateResultsWidth);
     } else {
-         window.removeEventListener('resize', updateWidth);
+         window.removeEventListener('resize', updateResultsWidth);
     }
-    // Cleanup listener
-    return () => window.removeEventListener('resize', updateWidth);
-  }, [openResults]); // Re-calculate width when Popper opens/closes
+    return () => window.removeEventListener('resize', updateResultsWidth);
+  }, [openResults]);
+
+  // --- Calculate Active Filter Count ---
+  useEffect(() => {
+      let count = 0;
+      // Check if time range is partially or fully set
+      if (filters.startTime || filters.endTime) count++;
+      // Check if any days are selected
+      if (filters.days && filters.days.length > 0) count++;
+      setActiveFilterCount(count);
+  }, [filters]);
 
   // --- Event Handlers ---
 
   const handleInputChange = (event) => {
     setQuery(event.target.value);
-    // Close results if input is cleared manually
     if (event.target.value === '') {
-       setOpenResults(false);
-       setResults([]);
-       setHasSearched(false);
-       setSearchError(null);
+       setOpenResults(false); setResults([]); setHasSearched(false); setSearchError(null);
     }
   };
 
-  const handleSearch = useCallback(async () => {
+  // --- Modified Search Handler ---
+  const handleSearch = useCallback(async (applyFilters = false) => {
+    // Close filter popper if applying filters from it
+    if (applyFilters) {
+        setOpenFilters(false);
+    }
+
+    // Basic query validation
     if (!query.trim()) {
-      setResults([]);
-      setSearchError(null);
-      setHasSearched(true);
-      setOpenResults(false);
+      setResults([]); setSearchError(null); setHasSearched(true); setOpenResults(false);
       return;
     }
 
@@ -92,177 +115,223 @@ const SearchBar = () => {
     setSearchError(null);
     setResults([]);
     setHasSearched(true);
-    setOpenResults(true); // Open Popper when search starts
+    setOpenResults(true); // Open results popper
+
+    // --- Build API URL with Filters ---
+    let apiUrl = `http://localhost:7070/api/courses/search?query=${encodeURIComponent(query.trim())}`;
+    // Add filters only if they have valid values
+    if (filters.startTime) apiUrl += `&startTime=${encodeURIComponent(filters.startTime)}`;
+    if (filters.endTime) apiUrl += `&endTime=${encodeURIComponent(filters.endTime)}`;
+    // Ensure filters.days is an array before joining
+    if (filters.days && Array.isArray(filters.days) && filters.days.length > 0) {
+        apiUrl += `&days=${encodeURIComponent(filters.days.join(''))}`; // Join days array into string "MWF"
+    }
+
+    console.log("Searching with URL:", apiUrl); // Log the URL for debugging
 
     try {
-      // Ensure your backend URL is correct
-      const apiUrl = `http://localhost:7070/api/courses/search?query=${encodeURIComponent(query.trim())}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: `HTTP error! Status: ${response.status}` }));
         throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
       }
       const data = await response.json();
-      const resultsArray = Array.isArray(data) ? data : [];
-      setResults(resultsArray);
-      // Keep popper open even if no results, to show the message
+      setResults(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Search API call failed:", err);
       setSearchError(err.message || "Failed to fetch search results.");
       setResults([]);
-      setOpenResults(true); // Keep popper open to show error
+      setOpenResults(true); // Keep open to show error
     } finally {
       setIsSearchLoading(false);
     }
-  }, [query]);
+  // Only include query and filters in dependencies
+  }, [query, filters]); // Include filters here so search uses the latest values
 
   const handleKeyPress = useCallback((event) => {
     if (event.key === 'Enter') {
-      handleSearch();
+      handleSearch(); // Trigger search without explicitly applying filters from the filter popper
     }
   }, [handleSearch]);
 
   const handleAddCourseClick = (course) => {
-    console.log("SearchBar: Add course clicked:", course.courseCode);
-    addCourse(course); // Call function from context (or props)
-    setOpenResults(false); // Close results after adding a course
+    addCourse(course);
+    setOpenResults(false);
   };
 
-  // --- Popper Control ---
-  const handleFocus = () => {
-    // Optionally open if there are previous results or errors?
-    // For now, only open on explicit search.
+  // --- Filter Popper Control ---
+  const handleFilterButtonClick = () => {
+    setOpenFilters((prev) => !prev); // Toggle filter popper
+    setOpenResults(false); // Close results when opening filters
   };
 
+  const handleFilterChange = (newFilters) => {
+      setFilters(newFilters);
+  };
+
+  const handleApplyFilters = () => {
+      handleSearch(true); // Pass true to indicate filters are being applied
+  };
+
+  const handleResetFilters = () => {
+      setFilters({ startTime: '', endTime: '', days: [] });
+      // Optionally trigger a search immediately after resetting?
+      // handleSearch(true); // Or maybe just close the popper
+      setOpenFilters(false);
+  };
+
+  // --- Click Away Handlers ---
+  // Combined handler to close either popper if clicking outside relevant areas
   const handleClickAway = (event) => {
-      // Close if the click is outside the anchor element AND the popper itself
-      // The check for anchorElRef.current.contains is important
-      if (anchorElRef.current && !anchorElRef.current.contains(event.target)) {
+      // Close results if click is outside search input and filter button
+      if (openResults &&
+          searchAnchorElRef.current && !searchAnchorElRef.current.contains(event.target) &&
+          filterAnchorElRef.current && !filterAnchorElRef.current.contains(event.target))
+      {
+         // We also need to ensure the click wasn't inside the results popper itself
+         // This check is complex without direct popper ref. We add stopPropagation
+         // to the Paper components inside the Poppers instead.
          setOpenResults(false);
+      }
+      // Close filters if click is outside filter button
+       if (openFilters &&
+           filterAnchorElRef.current && !filterAnchorElRef.current.contains(event.target)) {
+         // Same complexity applies for checking clicks inside the filter popper
+         setOpenFilters(false);
       }
   };
 
-  // Determine overall loading state
+
   const overallLoading = isSearchLoading || isScheduleLoading;
 
   return (
-    // ClickAwayListener wraps the input and the Popper logic
+    // Use a single ClickAwayListener for the whole search area
     <ClickAwayListener onClickAway={handleClickAway}>
-      {/* Container Box needs position relative for Popper positioning context */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, position: 'relative' }}>
         <Typography variant="h6" component="div">
           Course Search
         </Typography>
 
-        {/* Search Input Field - This is the anchor for the Popper */}
-        <TextField
-          label="Search Courses (e.g., COMP 101)"
-          variant="outlined"
-          fullWidth
-          value={query}
-          onChange={handleInputChange}
-          onKeyPress={handleKeyPress}
-          onFocus={handleFocus} // Handle focus if needed
-          disabled={overallLoading}
-          inputRef={anchorElRef} // Assign the ref here
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton
-                  aria-label="search courses"
-                  onClick={handleSearch}
-                  edge="end"
-                  disabled={overallLoading || !query.trim()} // Also disable if query is empty
-                >
-                  {isSearchLoading ? <CircularProgress size={24} /> : <SearchIcon />}
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-        />
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+            {/* Wrap TextField in a div to attach the ref for Popper anchor */}
+             <div style={{ flexGrow: 1 }} ref={searchAnchorElRef}>
+                <TextField
+                    label="Search Courses (e.g., COMP 101)"
+                    variant="outlined"
+                    fullWidth
+                    value={query}
+                    onChange={handleInputChange}
+                    onKeyPress={handleKeyPress}
+                    disabled={overallLoading}
+                    // inputRef is for the input element itself, not the wrapper
+                    InputProps={{
+                        endAdornment: (
+                        <InputAdornment position="end">
+                            <IconButton
+                            aria-label="search courses"
+                            onClick={() => handleSearch()} // Search without explicit filter apply
+                            edge="end"
+                            disabled={overallLoading || !query.trim()}
+                            >
+                            {isSearchLoading ? <CircularProgress size={24} /> : <SearchIcon />}
+                            </IconButton>
+                        </InputAdornment>
+                        ),
+                    }}
+                />
+             </div>
 
-        {/* Popper for displaying results overlay */}
+            {/* Filter Button - Anchor for filter popper */}
+            {/* This Box acts as the anchor and wrapper for the listener */}
+            <Box ref={filterAnchorElRef}>
+                <IconButton
+                    aria-label="show filters"
+                    onClick={handleFilterButtonClick}
+                    // ref is now on the Box wrapper
+                    color={openFilters ? "primary" : "default"} // Indicate if open
+                    sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: '9px' }} // Match TextField height roughly
+                >
+                    <Badge badgeContent={activeFilterCount} color="secondary">
+                        <FilterListIcon />
+                    </Badge>
+                </IconButton>
+            </Box>
+        </Box>
+
+
+        {/* --- Results Popper --- */}
         <Popper
           open={openResults}
-          anchorEl={anchorElRef.current} // Anchor to the TextField
-          placement="bottom-start" // Position below the TextField
-          transition // Enable transition
-          modifiers={[ // Prevent Popper from overflowing viewport
-            { name: 'offset', options: { offset: [0, 4] } }, // Add small vertical offset
-            { name: 'preventOverflow', options: { boundary: 'clippingParents' } },
-          ]}
+          anchorEl={searchAnchorElRef.current} // Use the div wrapper ref
+          placement="bottom-start"
+          transition
+          disablePortal // Keep Popper within the sidebar's stacking context if needed
+          modifiers={[ { name: 'offset', options: { offset: [0, 4] } }, { name: 'preventOverflow', options: { boundary: 'clippingParents' } }]}
           style={{ zIndex: 1200 }} // Ensure Popper is above other elements
-          // Set width dynamically based on the anchor element's width
-          sx={{ width: popperWidth > 0 ? `${popperWidth}px` : 'auto' }}
+          sx={{ width: resultsPopperWidth > 0 ? `${resultsPopperWidth}px` : 'auto' }}
         >
-          {/* Optional Fade transition */}
           {({ TransitionProps }) => (
             <Fade {...TransitionProps} timeout={350}>
-                {/* Paper provides background and elevation for the Popper content */}
-                <Paper elevation={4} sx={{ mt: 0.5 }}>
-                    {/* Loading Indicator inside Popper */}
-                    {isSearchLoading && <CircularProgress sx={{ display: 'block', margin: '20px auto' }} />}
+              {/* Added onClick={(e) => e.stopPropagation()} to Paper to prevent ClickAwayListener from closing when clicking inside */}
+              <Paper elevation={4} sx={{ mt: 0.5 }} onClick={(e) => e.stopPropagation()}>
+                {isSearchLoading && <CircularProgress sx={{ display: 'block', margin: '20px auto' }} />}
+                {searchError && !isSearchLoading && <Alert severity="error" sx={{ m: 1, borderRadius: 0 }}>Search Error: {searchError}</Alert>}
+                {scheduleError && !isSearchLoading && <Alert severity="warning" sx={{ m: 1, borderRadius: 0 }}>Schedule Error: {scheduleError}</Alert>}
+                {hasSearched && !isSearchLoading && !searchError && results.length === 0 && <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>No courses found matching your query.</Typography>}
+                {results.length > 0 && !isSearchLoading && (
+                  <List dense sx={{ maxHeight: 300, overflow: 'auto', p: 0 }}>
+                    {results.map((course) => (
+                      <ListItem key={`${course.subject}-${course.courseCode}-${course.section}`} disablePadding divider
+                        secondaryAction={
+                          <IconButton edge="end" aria-label={`add ${course.name}`} onClick={() => handleAddCourseClick(course)} title={`Add ${course.subject} ${course.courseCode} to schedule`} disabled={isScheduleLoading} sx={{ mr: 1 }}>
+                            <AddCircleOutlineIcon />
+                          </IconButton>
+                        }
+                      >
+                        <ListItemButton dense sx={{ pl: 2, pr: 1 }}>
+                          <ListItemText
+                            primary={`${course.subject} ${course.courseCode} - ${course.name}`}
+                            secondary={`Sec: ${course.section || 'N/A'} | Prof: ${course.professor?.name || 'N/A'} | Days: ${course.days || 'N/A'} | Loc: ${course.location || 'N/A'} | Time: ${course.time?.startTime ? `${formatTime(course.time.startTime)} - ${formatTime(course.time.endTime)}` : 'N/A'}`}
+                            secondaryTypographyProps={{ sx: { fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }}
+                            primaryTypographyProps={{ sx: { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </Paper>
+            </Fade>
+          )}
+        </Popper>
 
-                    {/* Error Display inside Popper */}
-                    {searchError && !isSearchLoading && (
-                    <Alert severity="error" sx={{ m: 1, borderRadius: 0 }}> {/* Remove border radius for cleaner look */}
-                        Search Error: {searchError}
-                    </Alert>
-                    )}
-
-                    {/* Schedule Action Error Display inside Popper */}
-                    {scheduleError && !isSearchLoading && (
-                    <Alert severity="warning" sx={{ m: 1, borderRadius: 0 }}>
-                        Schedule Error: {scheduleError}
-                    </Alert>
-                    )}
-
-                    {/* Display message if no results found after searching */}
-                    {hasSearched && !isSearchLoading && !searchError && results.length === 0 && (
-                    <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-                        No courses found matching your query.
-                    </Typography>
-                    )}
-
-                    {/* Render the list if there are results */}
-                    {results.length > 0 && !isSearchLoading && (
-                    <List dense sx={{ maxHeight: 300, overflow: 'auto', p: 0 }}> {/* Limit height, make scrollable, remove padding */}
-                        {results.map((course) => (
-                        <ListItem
-                            key={`${course.subject}-${course.courseCode}-${course.section}`}
-                            disablePadding
-                            divider // Add divider between items
-                            secondaryAction={
-                            <IconButton
-                                edge="end"
-                                aria-label={`add ${course.name}`}
-                                onClick={() => handleAddCourseClick(course)}
-                                title={`Add ${course.subject} ${course.courseCode} to schedule`}
-                                disabled={isScheduleLoading}
-                                sx={{ mr: 1 }} // Add margin to icon button
-                            >
-                                <AddCircleOutlineIcon />
-                            </IconButton>
-                            }
-                        >
-                            <ListItemButton dense sx={{ pl: 2, pr: 1 }}> {/* Adjust padding */}
-                            <ListItemText
-                                primary={`${course.subject} ${course.courseCode} - ${course.name}`}
-                                secondary={`Sec: ${course.section || 'N/A'} | Prof: ${course.professor?.name || 'N/A'} | Days: ${course.days || 'N/A'} | Loc: ${course.location || 'N/A'} | Time: ${course.time?.startTime ? `${formatTime(course.time.startTime)} - ${formatTime(course.time.endTime)}` : 'N/A'}`}
-                                secondaryTypographyProps={{ sx: { fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }} // Prevent wrapping
-                                primaryTypographyProps={{ sx: { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }} // Prevent wrapping
-                            />
-                            </ListItemButton>
-                        </ListItem>
-                        ))}
-                    </List>
-                    )}
-                </Paper>
+        {/* --- Filter Popper --- */}
+         <Popper
+          open={openFilters}
+          anchorEl={filterAnchorElRef.current} // Anchor to the filter button's container
+          placement="bottom-end" // Position below and to the right
+          transition
+          disablePortal // Keep Popper within the sidebar's stacking context
+          modifiers={[ { name: 'offset', options: { offset: [0, 4] } } ]} // Add small vertical offset
+          style={{ zIndex: 1250 }} // Ensure filters are above results if they overlap
+        >
+          {({ TransitionProps }) => (
+            <Fade {...TransitionProps} timeout={350}>
+              {/* Added onClick={(e) => e.stopPropagation()} to Paper */}
+              <Paper elevation={6} sx={{ mt: 0.5 }} onClick={(e) => e.stopPropagation()}>
+                 <SearchFilters
+                    filters={filters}
+                    onFilterChange={handleFilterChange}
+                    onApplyFilters={handleApplyFilters}
+                    onResetFilters={handleResetFilters}
+                 />
+              </Paper>
             </Fade>
            )}
         </Popper>
+
       </Box>
-    </ClickAwayListener>
+    </ClickAwayListener> // Close outer ClickAwayListener
   );
 };
 
