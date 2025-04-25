@@ -1,22 +1,27 @@
 // src/components/TopBar.js
-import React from 'react'; // Removed useState, useEffect as we use context now
+import React from 'react';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress'; // For save indicator
-import SaveIcon from '@mui/icons-material/Save'; // Import Save icon
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // Import Check icon
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'; // Import Error icon
-import Tooltip from '@mui/material/Tooltip'; // To show save status message
+import CircularProgress from '@mui/material/CircularProgress';
+import SaveIcon from '@mui/icons-material/Save';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import Tooltip from '@mui/material/Tooltip';
+// /**********************************************************************/
+// /* START OF MODIFICATION (Ensure Link is imported)                    */
+// /**********************************************************************/
+import { Link as RouterLink } from 'react-router-dom'; // Import RouterLink
+// /**********************************************************************/
+// /* END OF MODIFICATION                                                */
+// /**********************************************************************/
 
 // Import the useAuth hook
 import { useAuth } from '../context/AuthContext';
-// ***** START OF NEW CODE *****
 // Import the useSchedule hook
 import { useSchedule } from '../context/ScheduleContext';
-// ***** END OF NEW CODE *****
 
 
 // Optional: Import an icon if you like
@@ -30,10 +35,8 @@ import { useSchedule } from '../context/ScheduleContext';
 const TopBar = () => {
   // Get authentication state and functions from the context
   const { currentUser, loading: authLoading, logout } = useAuth(); // Destructure what's needed
-  // ***** START OF NEW CODE *****
   // Get schedule context for saving
   const { saveSchedule, saveStatus, scheduleData } = useSchedule();
-  // ***** END OF NEW CODE *****
 
 
   // --- Action Handlers ---
@@ -48,12 +51,10 @@ const TopBar = () => {
     // TODO: Implement navigation or modal display for settings
   };
 
-  // ***** START OF NEW CODE *****
   const handleSave = () => {
       console.log("Save button clicked");
       saveSchedule(); // Call save function from context
   };
-  // ***** END OF NEW CODE *****
 
 
   return (
@@ -75,21 +76,23 @@ const TopBar = () => {
 
         {/* --- User Info and Actions --- */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}> {/* Added gap */}
-          {/* Display loading state, error, user info, or login prompt */}
+          {/* Display loading state */}
           {authLoading && <Typography variant="body2" sx={{ mr: 2 }}>Loading...</Typography>}
 
+          {/* Display user info/actions OR guest view based on currentUser */}
           {currentUser ? (
-            <>
-              {/* Display Welcome message if user is loaded */}
-              <Typography variant="body1" sx={{ mr: 1 }}> {/* Reduced margin */}
+            // /**********************************************************************/
+            // /* START OF MODIFICATION (Logged-in user view)                      */
+            // /**********************************************************************/
+            <> {/* Use a Fragment to group multiple elements */}
+              {/* Welcome message */}
+              <Typography variant="body1" sx={{ mr: 1 }}>
                 Welcome, {currentUser.name || 'User'}!
               </Typography>
 
-              {/* ***** START OF NEW CODE ***** */}
               {/* Save Button */}
               <Tooltip title={saveStatus.error ? `Save Error: ${saveStatus.error}` : (saveStatus.success ? "Schedule Saved!" : "Save Current Schedule")}>
-                {/* Wrap button in span for tooltip when disabled */}
-                <span>
+                <span> {/* Wrap button in span for tooltip when disabled */}
                     <Button
                         color="inherit"
                         variant="outlined" // Make it stand out slightly
@@ -114,24 +117,45 @@ const TopBar = () => {
                     </Button>
                  </span>
               </Tooltip>
-              {/* ***** END OF NEW CODE ***** */}
+
+              {/* Profile Button */}
+              <Button
+                  color="inherit"
+                  component={RouterLink} // Use RouterLink for navigation
+                  to="/profile"          // Link to the new profile route
+                  sx={{ mr: 1 }}         // Add some margin
+              >
+                  Profile
+              </Button>
 
               {/* Settings Button (Placeholder) */}
               {/* <Button color="inherit" onClick={handleSettings}>Settings</Button> */}
-              {/* Logout Button - Uses handleLogout which calls context logout */}
+
+              {/* Logout Button */}
               <Button color="inherit" onClick={handleLogout}>Logout</Button>
             </>
+            // /**********************************************************************/
+            // /* END OF MODIFICATION                                                */
+            // /**********************************************************************/
           ) : (
-             <>
-              {/* Show if no user is loaded (e.g., needs login) */}
-               <Typography variant="body1" sx={{ mr: 2 }}>
-                 Guest
-               </Typography>
-              {/* You might show a Login button here instead, linking to /login */}
-              {/* <Button color="inherit" component={Link} to="/login">Login</Button> */}
+            // /**********************************************************************/
+            // /* START OF MODIFICATION (Guest view - ensure this part exists)     */
+            // /**********************************************************************/
+            <> {/* Use a Fragment for the guest view */}
+              {/* Show "Guest" if no user is loaded and not loading */}
+              {!authLoading && (
+                 <Typography variant="body1" sx={{ mr: 2 }}>
+                   Guest
+                 </Typography>
+              )}
+              {/* You might show a Login button here instead if needed */}
+              {/* Example: <Button color="inherit" component={RouterLink} to="/login">Login</Button> */}
              </>
-          )}
-        </Box>
+            // /**********************************************************************/
+            // /* END OF MODIFICATION                                                */
+            // /**********************************************************************/
+          )} {/* End of the ternary operator */}
+        </Box> {/* End of Box containing user info/actions */}
       </Toolbar>
     </AppBar>
   );
