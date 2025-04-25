@@ -1,3 +1,5 @@
+package newSite.core;
+
 public class Event {
     public String name;
     public String days; // e.g., "MWF"
@@ -40,6 +42,6 @@ public class Event {
 
 
     public String quietToString() {
-        return "Event:" + name + " on " + days + " with timeslot: " + time;
+        return "newSite.core.Event:" + name + " on " + days + " with timeslot: " + time;
     }
 }

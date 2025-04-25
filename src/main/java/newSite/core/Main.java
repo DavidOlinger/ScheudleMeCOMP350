@@ -1,3 +1,5 @@
+package newSite.core;
+
 import com.google.gson.Gson;
 
 import java.io.FileReader;
@@ -37,10 +39,10 @@ public class Main {
     }
 
     /**
-     * Reads the JSON file and converts it into a Set of Course objects.
+     * Reads the JSON file and converts it into a Set of newSite.core.Course objects.
      *
      * @param filePath Path to the JSON file.
-     * @return A Set of Course objects.
+     * @return A Set of newSite.core.Course objects.
      */
     public static Set<Course> loadCourseDatabase(String filePath) {
         Set<Course> courseDatabase = new HashSet<>();
@@ -60,19 +62,19 @@ public class Main {
 
             // System.out.println("Found " + courseList.classes.size() + " courses in the JSON file.");
 
-            // Step 2: Loop through each course in the JSON and convert it to a Course object
+            // Step 2: Loop through each course in the JSON and convert it to a newSite.core.Course object
             for (CourseData courseData : courseList.classes) {
                 // System.out.println("\nProcessing course: " + courseData.name);
 
-                // Step 3: Create a Professor object (assuming the first faculty member is the primary professor)
+                // Step 3: Create a newSite.core.Professor object (assuming the first faculty member is the primary professor)
                 if (courseData.faculty == null || courseData.faculty.isEmpty()) {
                     // System.out.println("Warning: No faculty listed for course: " + courseData.name);
                     continue; // Skip this course if no faculty is listed
                 }
                 Professor professor = new Professor(courseData.faculty.get(0));
-                // System.out.println("Professor: " + professor.name);
+                // System.out.println("newSite.core.Professor: " + professor.name);
 
-                // Step 4: Create TimeSlot objects for the course
+                // Step 4: Create newSite.core.TimeSlot objects for the course
                 Set<TimeSlot> timeSlots = new HashSet<>();
                 if (courseData.times != null && !courseData.times.isEmpty()) {
                     for (TimeSlotData timeData : courseData.times) {
@@ -94,7 +96,7 @@ public class Main {
                 String days = daysBuilder.toString();
                 // System.out.println("Days: " + days);
 
-                // Step 6: Create a Course object
+                // Step 6: Create a newSite.core.Course object
                 if (timeSlots.isEmpty()) {
                     // System.out.println("Warning: Skipping course due to missing time slots: " + courseData.name);
                     continue; // Skip this course if no time slots are available
@@ -151,7 +153,7 @@ public class Main {
         String loginChoice = "";
 
         while (!validLoginChoice) {
-            System.out.println("Welcome to Course Scheduler!");
+            System.out.println("Welcome to newSite.core.Course Scheduler!");
             System.out.println("1. Login");
             System.out.println("2. Create new account");
             System.out.print("Enter choice (1-2): ");
@@ -177,7 +179,7 @@ public class Main {
 
                     scheduleManager.user = User.loadUserData(loginUsername);
                     if (scheduleManager.user == null) {
-                        System.out.println("User does not exist.");
+                        System.out.println("newSite.core.User does not exist.");
                         System.out.print("Would you like to create a new account? (y/n): ");
                         String createAccount = scanner.nextLine().toLowerCase();
 
@@ -230,6 +232,7 @@ public class Main {
 
         // After successful login, check for existing schedules
         String scheduleName;
+        AES encryptor = AES.getInstance();
         if (scheduleManager.user.mySchedules != null && !scheduleManager.user.mySchedules.isEmpty()) {
             boolean validScheduleChoice = false;
             String scheduleChoice = "";
@@ -283,6 +286,9 @@ public class Main {
                 scheduleName = selectedSchedule.substring(selectedSchedule.lastIndexOf("/") + 1, selectedSchedule.lastIndexOf("."));
                 // Load the schedule once and store the result
                 Schedule loadedSchedule = scheduleManager.loadSchedule(scheduleName);
+
+                // Decrypt Schedule
+
                 // System.out.println("Loaded schedule: " + loadedSchedule.events);
 
                 // Initialize the undo/redo history after loading a schedule
@@ -292,7 +298,7 @@ public class Main {
                 calendarView.setSchedule(scheduleManager.getCurrentSchedule());
 
                 // Display the loaded schedule immediately
-                System.out.println("\nLoaded Schedule:");
+                System.out.println("\nLoaded newSite.core.Schedule:");
                 calendarView.display();
             } else {
                 System.out.print("Enter new schedule name: ");
@@ -317,8 +323,10 @@ public class Main {
             // Update calendar view with the new empty schedule
             calendarView.setSchedule(scheduleManager.getCurrentSchedule());
         }
+        // When initializing the Logger (in Main class)
+        Logger logger = new Logger(scheduleManager.user.name, scheduleName, scheduleManager);
 
-        // Main program loop
+        // newSite.core.Main program loop
         while (true) {
             // Ensure the calendar view has the latest schedule
             calendarView.setSchedule(scheduleManager.getCurrentSchedule());
@@ -328,7 +336,7 @@ public class Main {
 
             do {
                 System.out.println("\nMenu Options:");
-                System.out.println("1. Search for courses");
+                System.out.println("1. newSite.core.Search for courses");
                 System.out.println("2. Add course to schedule");
                 System.out.println("3. Remove course from schedule");
                 System.out.println("4. Save schedule");
@@ -383,7 +391,7 @@ public class Main {
 
             // Base menu options
             if (choiceNum == 1) {
-                // Search for courses
+                // newSite.core.Search for courses
                 boolean filtering = true;
                 Set<String> subjectFilter = new HashSet<>();
                 Set<String> daysFilter = new HashSet<>();
@@ -395,11 +403,11 @@ public class Main {
                     boolean validFilterChoice = false;
 
                     while (!validFilterChoice) {
-                        System.out.println("\nSearch and Filter Menu:");
+                        System.out.println("\nnewSite.core.Search and newSite.core.Filter Menu:");
                         System.out.println("1. Enter search query");
-                        System.out.println("2. Filter by subject");
-                        System.out.println("3. Filter by days (MWF/TR)");
-                        System.out.println("4. Filter by time range");
+                        System.out.println("2. newSite.core.Filter by subject");
+                        System.out.println("3. newSite.core.Filter by days (MWF/TR)");
+                        System.out.println("4. newSite.core.Filter by time range");
                         System.out.println("5. Clear all filters");
                         System.out.println("6. Execute search");
                         System.out.println("7. Cancel");
@@ -420,7 +428,7 @@ public class Main {
                             query = scanner.nextLine();
                             // Only perform the search query without displaying results
                             search.searchQuery(query);
-                            System.out.println("Search query added. Select option 6 to execute the search.");
+                            System.out.println("newSite.core.Search query added. Select option 6 to execute the search.");
                             break;
 
                         case "2":
@@ -502,11 +510,11 @@ public class Main {
                             }
 
                             // Display search results using the displaySearchResults method
-                            System.out.println("\nSearch Results:\n");
+                            System.out.println("\nnewSite.core.Search Results:\n");
                             search.displaySearchResults(query, search.filteredResultsList);
 
                             // Display current schedule
-                            System.out.println("\nCurrent Schedule:");
+                            System.out.println("\nCurrent newSite.core.Schedule:");
                             calendarView.display();
                             break;
 
@@ -575,11 +583,11 @@ public class Main {
                     if (conflictingEvent != null) {
                         Course conflictingCourse = (Course) conflictingEvent;
                         System.out.println("\nConflict detected!");
-                        System.out.printf("Course 1: %s (%s %d) - %s %s\n",
+                        System.out.printf("newSite.core.Course 1: %s (%s %d) - %s %s\n",
                                 selectedCourse.name, selectedCourse.subject,
                                 selectedCourse.courseCode, selectedCourse.days,
                                 selectedCourse.time.toString());
-                        System.out.printf("Course 2: %s (%s %d) - %s %s\n",
+                        System.out.printf("newSite.core.Course 2: %s (%s %d) - %s %s\n",
                                 conflictingCourse.name, conflictingCourse.subject,
                                 conflictingCourse.courseCode, conflictingCourse.days,
                                 conflictingCourse.time.toString());
@@ -611,14 +619,19 @@ public class Main {
                         }
                     } else {
                         scheduleManager.addEvent(selectedCourse);
-                        System.out.println("Course added successfully!");
+                        System.out.println("newSite.core.Course added successfully!");
+
+                        // logs the course being added
+                        if (!scheduleManager.addEvent(selectedCourse)) {
+                            logger.logCourseAddition(selectedCourse);
+                        }
                     }
 
                     // Update the calendar view with the modified schedule
                     calendarView.setSchedule(scheduleManager.getCurrentSchedule());
 
                     // Display updated schedule
-                    System.out.println("\nUpdated Schedule:");
+                    System.out.println("\nUpdated newSite.core.Schedule:");
                     calendarView.display();
                 }
             } else if (choiceNum == 3) {
@@ -666,20 +679,26 @@ public class Main {
                 if (courseNum > 0) {
                     Event eventToRemove = (Event) scheduleManager.getCurrentSchedule().events.toArray()[courseNum - 1];
                     scheduleManager.remEvent(eventToRemove);
-                    System.out.println("Course removed successfully!");
+
+                    // logs the course removal
+                    if (eventToRemove instanceof Course) {
+                        logger.logCourseRemoval((Course)eventToRemove);
+                    }
+
+                    System.out.println("newSite.core.Course removed successfully!");
 
                     // Update the calendar view with the modified schedule
                     calendarView.setSchedule(scheduleManager.getCurrentSchedule());
 
                     // Display updated schedule
-                    System.out.println("\nUpdated Schedule:");
+                    System.out.println("\nUpdated newSite.core.Schedule:");
                     calendarView.display();
                 }
             } else if (choiceNum == 4) {
                 // Save schedule
                 if (scheduleManager.getCurrentSchedule() != null) {
                     scheduleManager.user.saveSchedule(scheduleManager.getCurrentSchedule());
-                    System.out.println("Schedule saved successfully!");
+                    System.out.println("newSite.core.Schedule saved successfully!");
                 } else {
                     System.out.println("No schedule to save.");
                 }
@@ -701,18 +720,19 @@ public class Main {
                     scheduleManager.undo();
                     // Update calendar view after undo
                     calendarView.setSchedule(scheduleManager.getCurrentSchedule());
-                    System.out.println("\nUndo successful! Updated Schedule:");
+                    System.out.println("\nUndo successful! Updated newSite.core.Schedule:");
                     calendarView.display();
                 } else if (canRedo && choiceNum == redoPosition) {
                     // Redo
                     scheduleManager.redo();
                     // Update calendar view after redo
                     calendarView.setSchedule(scheduleManager.getCurrentSchedule());
-                    System.out.println("\nRedo successful! Updated Schedule:");
+                    System.out.println("\nRedo successful! Updated newSite.core.Schedule:");
                     calendarView.display();
                 } else if (choiceNum == exitPosition) {
                     // Exit
                     System.out.println("Goodbye!");
+                    // encrypt Schedule
                     scanner.close();
                     return;
                 }

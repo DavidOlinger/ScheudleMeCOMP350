@@ -1,3 +1,5 @@
+package newSite.core;
+
 import java.util.ArrayList;
 import java.util.Set;
 
@@ -12,11 +14,11 @@ public class Schedule {
         // Check if the event conflicts with any other event in the schedule (does not check for multiple conflicts)
         for (Event event : this.events) {
             if (event.ConflictsWith(e)) {
-                System.out.println("Event " + e.name + " conflicts with event " + event.name); //verbose
+                System.out.println("newSite.core.Event " + e.name + " conflicts with event " + event.name); //verbose
                 return true;
             }
         }
-        System.out.println("Event " + e.name + " does not conflict with any other events"); //verbose
+        System.out.println("newSite.core.Event " + e.name + " does not conflict with any other events"); //verbose
         return false;
     }
 
@@ -34,7 +36,7 @@ public class Schedule {
 
         // Iterate through events in the schedule
         for (Event e : this.events) {
-            if (e instanceof Course course) { // Only copy ref numbers from Course objects
+            if (e instanceof Course course) { // Only copy ref numbers from newSite.core.Course objects
                 refNumbers.add(String.valueOf(course.courseCode)); // Convert int to string
             }
         }
@@ -49,7 +51,7 @@ public class Schedule {
     @Override
     public String toString(){
         StringBuilder sb = new StringBuilder();
-        sb.append("Schedule: ").append(this.name).append("\n");
+        sb.append("newSite.core.Schedule: ").append(this.name).append("\n");
 
         // Ensure the schedule has events (courses)
         if (this.events.isEmpty()) {

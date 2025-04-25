@@ -1,3 +1,5 @@
+package newSite.core;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -184,7 +186,7 @@ public class CalendarView {
 
         // Verify the times are in the expected range
         if (timeSlot.startTime < START_HOUR * 3600 || timeSlot.endTime > END_HOUR * 3600) {
-            System.out.println("Warning: Course has out-of-range times: " + 
+            System.out.println("Warning: newSite.core.Course has out-of-range times: " +
                 formatTimeSeconds(timeSlot.startTime) + " - " + formatTimeSeconds(timeSlot.endTime));
         }
 
@@ -196,17 +198,17 @@ public class CalendarView {
         TimeSlot normalizedTime = normalizeTimeSlot(course.time);
         
         if (currentTime == normalizedTime.startTime) {
-            // Course start - show code
+            // newSite.core.Course start - show code
             return String.format("%s%d", course.subject, course.courseCode);
         } else if (currentTime > normalizedTime.startTime && currentTime < normalizedTime.endTime) {
-            // Course middle - show continuation
+            // newSite.core.Course middle - show continuation
             if ((currentTime - normalizedTime.startTime) % 900 == 0) { // Every 15 minutes
                 return "++++";
             } else {
                 return "│    ";
             }
         } else if (currentTime == getPreviousSlot(normalizedTime.endTime)) {
-            // Course end
+            // newSite.core.Course end
             return "++++";
         }
         return "";

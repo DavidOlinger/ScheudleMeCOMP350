@@ -1,13 +1,14 @@
-import java.util.ArrayList;
+package newSite.core;
+
 import java.util.HashSet;
 import java.util.Set;
 
 
 public class Search {
     public Filter filter;
-    //public Set<Course> resultsList;
+    //public Set<newSite.core.Course> resultsList;
     public Set<Course> filteredResultsList;
-    //private Set<Professor> professors;
+    //private Set<newSite.core.Professor> professors;
 
     public Set<Course> courseDatabase;
 

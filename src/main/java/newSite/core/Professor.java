@@ -1,3 +1,5 @@
+package newSite.core;
+
 public class Professor {
     public String name;
     public float rating;

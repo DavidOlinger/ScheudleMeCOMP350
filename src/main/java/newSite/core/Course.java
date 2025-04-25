@@ -1,10 +1,9 @@
-import java.sql.Timestamp;
-import java.util.ArrayList;
+package newSite.core;
 
 
 public class Course extends Event {
     //public int refNumber; // json file doesn't include this
-    //public ArrayList<Course> prerequisites; // json file doesn't include this
+    //public ArrayList<newSite.core.Course> prerequisites; // json file doesn't include this
     //public String description; // json file doesn't include this
 
     public Professor professor;
@@ -57,7 +56,7 @@ public class Course extends Event {
 
     @Override
     public String toString() {
-        return super.toString() + "\nProfessor: " + professor + "\nCourse Code: " + courseCode +
+        return super.toString() + "\nnewSite.core.Professor: " + professor + "\nnewSite.core.Course Code: " + courseCode +
                 "\nSemester: " + semester + "\nLocation: " + location + "\nSection: " + section +
                 "\nSubject: " + subject;
     }

@@ -1,12 +1,12 @@
+package newSite.core;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 
 import java.nio.charset.StandardCharsets;
@@ -46,7 +46,7 @@ public class User {
     @Override
     public String toString(){
         StringBuilder sb = new StringBuilder();
-        sb.append("User info:\n");
+        sb.append("newSite.core.User info:\n");
         sb.append("Name: ").append(name).append("\n");
         sb.append("ID: ").append(idNumber).append("\n");
         sb.append("Major: ").append(major).append("\n");
@@ -70,7 +70,7 @@ public class User {
      */
     public void saveSchedule(Schedule schedule) {
         if (schedule == null) {
-            System.out.println("Error: Schedule is null.");
+            System.out.println("Error: newSite.core.Schedule is null.");
             return;
         }
 
@@ -90,7 +90,7 @@ public class User {
         try (FileWriter writer = new FileWriter(fileName)) {
             // Convert the schedule object to JSON and write it to the file
             gson.toJson(schedule, writer);
-            System.out.println("Schedule saved to " + fileName);
+            System.out.println("newSite.core.Schedule saved to " + fileName);
 
             // Add the file path to the user's list if it's not already there
             if (!mySchedules.contains(fileName)) {
@@ -100,7 +100,7 @@ public class User {
 
             // Save the user data to persist the updated mySchedules list
             this.saveUserData();
-            System.out.println("User data updated with new schedule information.");
+            System.out.println("newSite.core.User data updated with new schedule information.");
 
         } catch (IOException e) {
             System.out.println("Error saving schedule: " + e.getMessage());
@@ -122,7 +122,7 @@ public class User {
 
         // Check if the schedule exists in the user's list
         if (!mySchedules.contains(filePath)) {
-            System.out.println("Error: Schedule not found in user's list: " + scheduleName);
+            System.out.println("Error: newSite.core.Schedule not found in user's list: " + scheduleName);
             return;
         }
 
@@ -144,10 +144,10 @@ public class User {
 
 
     /**
-     * Loads a schedule from a file and returns it as a Schedule object.
+     * Loads a schedule from a file and returns it as a newSite.core.Schedule object.
      *
      * @param fileName The name of the file (without the path or extension).
-     * @return The loaded Schedule object, or null if the file doesn't exist or an error occurs.
+     * @return The loaded newSite.core.Schedule object, or null if the file doesn't exist or an error occurs.
      */
     public Schedule loadFile(String fileName) {
         // Define the full file path
@@ -164,9 +164,9 @@ public class User {
         Gson gson = new Gson();
 
         try (FileReader reader = new FileReader(filePath)) {
-            // Deserialize the JSON file into a Schedule object
+            // Deserialize the JSON file into a newSite.core.Schedule object
             Schedule loadedSchedule = gson.fromJson(reader, Schedule.class);
-            System.out.println("Schedule loaded from " + filePath);
+            System.out.println("newSite.core.Schedule loaded from " + filePath);
             return loadedSchedule;
         } catch (IOException e) {
             System.out.println("Error loading schedule file: " + e.getMessage());
@@ -191,7 +191,7 @@ public class User {
 
         // Check if the old schedule file exists in the user's list
         if (!mySchedules.contains(oldFilePath)) {
-            System.out.println("Error: Schedule not found in user's list: " + oldFilePath);
+            System.out.println("Error: newSite.core.Schedule not found in user's list: " + oldFilePath);
             return;
         }
 
@@ -222,7 +222,7 @@ public class User {
             System.out.println("Error: Unable to delete old schedule file: " + oldFilePath);
         }
 
-        System.out.println("Schedule renamed from " + oldName + " to " + newName);
+        System.out.println("newSite.core.Schedule renamed from " + oldName + " to " + newName);
     }
 
 
@@ -298,7 +298,7 @@ public class User {
         try (FileWriter writer = new FileWriter(fileName)) {
             // Convert the user object to JSON and write it to the file
             gson.toJson(this, writer);
-            System.out.println("User data saved to " + fileName);
+            System.out.println("newSite.core.User data saved to " + fileName);
         } catch (IOException e) {
             System.out.println("Error saving user data: " + e.getMessage());
         }
@@ -311,7 +311,7 @@ public class User {
      * Loads a user's data from a file.
      *
      * @param username The name of the user to load.
-     * @return The loaded User object, or null if the file doesn't exist or an error occurs.
+     * @return The loaded newSite.core.User object, or null if the file doesn't exist or an error occurs.
      */
     public static User loadUserData(String username) {
         // Define the file path for the user's data
@@ -321,9 +321,9 @@ public class User {
         Gson gson = new Gson();
 
         try (FileReader reader = new FileReader(fileName)) {
-            // Deserialize the JSON file into a User object
+            // Deserialize the JSON file into a newSite.core.User object
             User user = gson.fromJson(reader, User.class);
-            //System.out.println("User data loaded from " + fileName);
+            //System.out.println("newSite.core.User data loaded from " + fileName);
             return user;
         } catch (IOException e) {
             System.out.println("Error loading user data: " + e.getMessage());
@@ -340,13 +340,13 @@ public class User {
      *
      * @param username The username for the new user.
      * @param password The password for the new user.
-     * @return The created User object, or null if the user already exists.
+     * @return The created newSite.core.User object, or null if the user already exists.
      */
     public static User addUser(String username, String password) {
         // Check if the user already exists
         User existingUser = User.loadUserData(username);
         if (existingUser != null) {
-            System.out.println("User already exists. Returning existing user.");
+            System.out.println("newSite.core.User already exists. Returning existing user.");
             return existingUser;
         }
 

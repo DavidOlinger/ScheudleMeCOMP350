@@ -1,10 +1,11 @@
+package newSite.core;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.Set;
 import java.util.Stack;
 
 public class ScheduleManager {
@@ -57,7 +58,7 @@ public class ScheduleManager {
      * Loads a schedule from a file in the user's directory.
      *
      * @param scheduleName The name of the schedule to load.
-     * @return The loaded Schedule object, or null if the file doesn't exist or an error occurs.
+     * @return The loaded newSite.core.Schedule object, or null if the file doesn't exist or an error occurs.
      */
     public Schedule loadSchedule(String scheduleName) {
         // Define the file path for the schedule
@@ -65,19 +66,19 @@ public class ScheduleManager {
 
         // Check if the schedule exists in the user's list
         if (!user.mySchedules.contains(filePath)) {
-            System.out.println("Error: Schedule not found in user's list: " + scheduleName);
+            System.out.println("Error: newSite.core.Schedule not found in user's list: " + scheduleName);
             return null;
         }
 
         try (FileReader reader = new FileReader(filePath)) {
-            // Create a Gson instance with a custom deserializer for Event objects
+            // Create a Gson instance with a custom deserializer for newSite.core.Event objects
             Gson gson = new GsonBuilder()
                     .registerTypeAdapter(Event.class, new EventDeserializer())
                     .create();
 
-            // Deserialize the JSON file into a Schedule object
+            // Deserialize the JSON file into a newSite.core.Schedule object
             Schedule loadedSchedule = gson.fromJson(reader, Schedule.class);
-            // System.out.println("Schedule loaded from " + filePath);
+            // System.out.println("newSite.core.Schedule loaded from " + filePath);
 
             // Set as current schedule
             currentSchedule = loadedSchedule;
@@ -120,7 +121,7 @@ public class ScheduleManager {
             return;
         }
 
-        // Create a new Schedule object
+        // Create a new newSite.core.Schedule object
         Schedule newSchedule = new Schedule();
         newSchedule.name = name;
         newSchedule.events = new HashSet<>();
@@ -156,7 +157,7 @@ public class ScheduleManager {
         }
 
         if (currentSchedule.CheckConflicts(e)) {
-            System.out.println("Error: Event conflicts with existing events in the schedule.");
+            System.out.println("Error: newSite.core.Event conflicts with existing events in the schedule.");
             return true;
         }
 
@@ -193,13 +194,13 @@ public class ScheduleManager {
         user = User.loadUserData(username);
 
         if (user == null) {
-            System.out.println("Error: User not found.");
+            System.out.println("Error: newSite.core.User not found.");
             return false;
         }
 
         // Check the password
         if (user.checkPassword(password)) {
-            System.out.println("User logged in successfully: " + user.name);
+            System.out.println("newSite.core.User logged in successfully: " + user.name);
             return true;
         } else {
             System.out.println("Error: Incorrect password.");
@@ -213,7 +214,7 @@ public class ScheduleManager {
     public void logoutUser() {
         if (user != null) {
             user.saveUserData();
-            System.out.println("User logged out and data saved: " + user.name);
+            System.out.println("newSite.core.User logged out and data saved: " + user.name);
             user = null; // Clear the user field
         } else {
             System.out.println("Error: No user is currently logged in.");

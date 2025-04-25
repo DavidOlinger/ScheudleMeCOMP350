@@ -1,10 +1,12 @@
+package newSite.core;
+
 public class TimeSlot {
 
     public int startTime;
     public int endTime;
 
     // converts clock time string like "16:45:00" into seconds from beginning of day (int)
-    TimeSlot(String clockStartTime, String clockEndTime) {
+    public TimeSlot(String clockStartTime, String clockEndTime) {
         if(clockStartTime.equals("") || clockEndTime.equals("")) {
             startTime = 0;
             endTime = 0;
