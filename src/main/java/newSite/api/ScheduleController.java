@@ -7,6 +7,10 @@ import newSite.core.Event; // Needed for adding events
 import newSite.core.Schedule;
 import newSite.core.ScheduleManager;
 import newSite.core.Search; // Might be needed to find the course to add/remove
+// ***** START OF MODIFICATION *****
+// Import User class to access user data for the response
+import newSite.core.User;
+// ***** END OF MODIFICATION *****
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +34,27 @@ public class ScheduleController {
         public String name;
     }
 
+    // ***** START OF MODIFICATION *****
+    // New simple class to represent the combined response for creating a schedule
+    public static class CreateScheduleResponse {
+        public Schedule schedule;
+        public User user; // Include the updated user object
+
+        public CreateScheduleResponse(Schedule schedule, User user) {
+            this.schedule = schedule;
+            // Create a safe copy of the user object for the response, excluding sensitive info like password hash
+            // This assumes a constructor or method exists to create a 'public' user view
+            // Or manually copy needed fields. Here we manually copy for clarity.
+            User publicUser = new User(user.name, ""); // Use constructor that only takes name/pass (pass empty pass)
+            publicUser.idNumber = user.idNumber;
+            publicUser.major = user.major;
+            publicUser.year = user.year;
+            publicUser.mySchedules = (user.mySchedules != null) ? new ArrayList<>(user.mySchedules) : new ArrayList<>();
+            this.user = publicUser;
+        }
+    }
+    // ***** END OF MODIFICATION *****
+
 
     public static void registerEndpoints(Javalin app, ScheduleManager scheduleManager) {
 
@@ -43,7 +68,7 @@ public class ScheduleController {
         app.get("/api/schedules", ctx -> listSavedSchedules(ctx, scheduleManager));
         app.put("/api/schedules/load/{scheduleName}", ctx -> loadSchedule(ctx, scheduleManager));
         app.post("/api/schedules/save", ctx -> saveCurrentSchedule(ctx, scheduleManager));
-        app.post("/api/schedules/new", ctx -> createNewSchedule(ctx, scheduleManager));
+        app.post("/api/schedules/new", ctx -> createNewSchedule(ctx, scheduleManager)); // This handler will be modified
         app.delete("/api/schedules/{scheduleName}", ctx -> deleteSchedule(ctx, scheduleManager));
 
     }
@@ -91,6 +116,11 @@ public class ScheduleController {
             AddCourseRequest request = ctx.bodyAsClass(AddCourseRequest.class);
             int courseCodeToAdd = request.courseCode;
             System.out.println("addCourseToCurrentSchedule: Received request to add course code: " + courseCodeToAdd);
+
+            // Ensure currentSearch and its database are not null before using stream
+            if (scheduleManager.currentSearch == null || scheduleManager.currentSearch.courseDatabase == null) {
+                throw new IllegalStateException("Search service or course database is not initialized in ScheduleManager.");
+            }
 
             Course courseToAdd = scheduleManager.currentSearch.courseDatabase.stream()
                     .filter(c -> c.courseCode == courseCodeToAdd)
@@ -180,9 +210,18 @@ public class ScheduleController {
         System.out.println("Request received to list schedules for user: " + scheduleManager.user.name);
 
         if (scheduleManager.user.mySchedules != null) {
+            // Ensure paths are valid before extracting names
             List<String> scheduleNames = scheduleManager.user.mySchedules.stream()
                     .filter(filePath -> filePath != null && filePath.contains("/") && filePath.contains("."))
-                    .map(filePath -> filePath.substring(filePath.lastIndexOf('/') + 1, filePath.lastIndexOf('.')))
+                    .map(filePath -> {
+                        try {
+                            return filePath.substring(filePath.lastIndexOf('/') + 1, filePath.lastIndexOf('.'));
+                        } catch (StringIndexOutOfBoundsException e) {
+                            System.err.println("Error parsing schedule file path: " + filePath);
+                            return null; // Skip invalid paths
+                        }
+                    })
+                    .filter(name -> name != null && !name.isEmpty()) // Filter out nulls/empty names
                     .collect(Collectors.toList());
             System.out.println("Returning schedule names: " + scheduleNames);
             ctx.json(scheduleNames);
@@ -239,6 +278,7 @@ public class ScheduleController {
         System.out.println("Received request to save schedule: " + currentSchedule.name + " for user " + scheduleManager.user.name);
 
         try {
+            // User.saveSchedule now also saves the user data file to persist mySchedules list
             scheduleManager.user.saveSchedule(currentSchedule);
             System.out.println("Schedule '" + currentSchedule.name + "' saved successfully via API.");
             ctx.status(200).json(Map.of("message", "Schedule '" + currentSchedule.name + "' saved successfully"));
@@ -249,9 +289,9 @@ public class ScheduleController {
         }
     }
 
-    // createNewSchedule remains the same
+    // createNewSchedule - MODIFIED to return updated user info
     private static void createNewSchedule(Context ctx, ScheduleManager scheduleManager) {
-        // ... (createNewSchedule implementation remains the same) ...
+        // ... (Input validation remains the same) ...
         if (scheduleManager.user == null) {
             ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "No user session found"));
             return;
@@ -274,9 +314,10 @@ public class ScheduleController {
         String trimmedName = scheduleName.trim();
         System.out.println("Received request to create new schedule: " + trimmedName + " for user " + scheduleManager.user.name);
 
+        // Check for existing schedule name conflict
         String potentialFilePath = "users/" + scheduleManager.user.name + "/schedules/" + trimmedName + ".json";
         if (scheduleManager.user.mySchedules == null) {
-            scheduleManager.user.mySchedules = new ArrayList<>();
+            scheduleManager.user.mySchedules = new ArrayList<>(); // Initialize if null
         }
         if (scheduleManager.user.mySchedules.contains(potentialFilePath)) {
             System.out.println("Schedule name '" + trimmedName + "' already exists.");
@@ -284,14 +325,22 @@ public class ScheduleController {
             return;
         }
 
+
         try {
+            // newSchedule creates, saves, adds to user list, and sets as current
             scheduleManager.newSchedule(trimmedName);
-            scheduleManager.initializeUndoRedoAfterLoad();
+            scheduleManager.initializeUndoRedoAfterLoad(); // Initialize history for the new schedule
 
             Schedule newSchedule = ScheduleManager.getCurrentSchedule();
+
             if (newSchedule != null && newSchedule.name.equals(trimmedName)) {
                 System.out.println("Successfully created and activated new schedule: " + trimmedName);
-                ctx.status(201).json(newSchedule);
+                // ***** START OF MODIFICATION *****
+                // Create the combined response object containing the new schedule
+                // and the updated user object (which includes the new schedule path)
+                CreateScheduleResponse responsePayload = new CreateScheduleResponse(newSchedule, scheduleManager.user);
+                ctx.status(201).json(responsePayload); // Send combined data
+                // ***** END OF MODIFICATION *****
             } else {
                 System.err.println("Error after creating new schedule: currentSchedule is not the new one or is null.");
                 ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to activate new schedule after creation attempt."));
@@ -318,26 +367,46 @@ public class ScheduleController {
         System.out.println("Received request to delete schedule: " + scheduleName + " for user " + scheduleManager.user.name);
 
         try {
+            // user.deleteSchedule removes the file and the entry from mySchedules list
             scheduleManager.user.deleteSchedule(scheduleName);
 
+            // If the deleted schedule was the active one, clear it
             Schedule current = ScheduleManager.getCurrentSchedule();
             if (current != null && current.name.equals(scheduleName)) {
                 ScheduleManager.currentSchedule = null;
-                scheduleManager.initializeUndoRedoAfterLoad();
+                scheduleManager.initializeUndoRedoAfterLoad(); // Reset history
                 System.out.println("Cleared active schedule because it was deleted.");
             }
+
+            // Save the user data to persist the removal from mySchedules list
             scheduleManager.user.saveUserData();
 
             System.out.println("Schedule '" + scheduleName + "' deleted successfully via API.");
-            ctx.status(200).json(Map.of("message", "Schedule '" + scheduleName + "' deleted successfully"));
+            // ***** START OF MODIFICATION *****
+            // Return the updated user object (with the reduced schedule list)
+            // Create a safe copy for the response
+            User publicUser = new User(scheduleManager.user.name, "");
+            publicUser.idNumber = scheduleManager.user.idNumber;
+            publicUser.major = scheduleManager.user.major;
+            publicUser.year = scheduleManager.user.year;
+            publicUser.mySchedules = (scheduleManager.user.mySchedules != null) ? new ArrayList<>(scheduleManager.user.mySchedules) : new ArrayList<>();
+
+            ctx.status(200).json(Map.of(
+                    "message", "Schedule '" + scheduleName + "' deleted successfully",
+                    "user", publicUser // Send updated user data
+            ));
+            // ***** END OF MODIFICATION *****
 
         } catch (Exception e) {
             System.err.println("Delete schedule error: " + e.getMessage());
             e.printStackTrace();
+            // Attempt to provide a more specific error if possible
             if (e.getMessage() != null && e.getMessage().toLowerCase().contains("not found")) {
                 ctx.status(404).json(new ScheduleMeApp.ErrorResponse("Not Found", "Schedule '" + scheduleName + "' not found"));
+            } else if (e.getMessage() != null && e.getMessage().toLowerCase().contains("unable to delete")) {
+                ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to delete schedule file on server."));
             } else {
-                ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to delete schedule"));
+                ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to delete schedule due to an unexpected error."));
             }
         }
     }
