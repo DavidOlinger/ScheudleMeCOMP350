@@ -7,60 +7,48 @@ import Paper from '@mui/material/Paper'; // Used for visual separation of panes
 // Import the overall layout component
 import Layout from '../components/Layout';
 
-// Import placeholder components for search and schedule view
-// Note: We assume these will be created later in the components directory
+// Import components for search, schedule view, and controls
 import SearchBar from '../components/SearchBar';
 import ScheduleView from '../components/ScheduleView';
+// ***** START OF NEW CODE *****
+import ScheduleControlPanel from '../components/ScheduleControlPanel';
+// ***** END OF NEW CODE *****
 
 /**
  * MainPage Component
  * Represents the main view of the schedule builder application.
  * Uses a two-pane layout:
- * - Left pane (smaller): Contains the course search functionality.
+ * - Left pane (smaller): Contains course search and schedule management controls.
  * - Right pane (larger): Displays the weekly schedule view.
  */
 function MainPage() {
   return (
     // Wrap the entire page content within the Layout component
-    // This ensures the TopBar and consistent padding/structure are applied.
     <Layout>
-      {/*
-       * Use MUI Grid component for layout.
-       * 'container' defines this as the Grid container.
-       * 'spacing={2}' adds space between grid items.
-       */}
-      <Grid container spacing={3}> {/* Increased spacing slightly */}
+      <Grid container spacing={3}>
 
-        {/* --- Left Pane (Search) --- */}
-        {/*
-         * 'item' defines this as a Grid item.
-         * 'xs={12}' makes it full-width on extra-small screens (mobile).
-         * 'md={3}' makes it take up 3 out of 12 columns on medium screens and up (approx 1/4).
-         */}
-        <Grid item xs={12} md={3}>
-           {/* Use Paper for a visually distinct background/container for the search area */}
-           <Paper elevation={2} sx={{ p: 2, height: '100%' }}> {/* Added padding and height */}
-             <Box sx={{ minHeight: 400 }}> {/* Ensure minimum height */}
-                {/* Placeholder for SearchBar component */}
-                {/* <SearchBar /> */}
+        {/* --- Left Pane (Search & Controls) --- */}
+        <Grid item xs={12} md={4} lg={3}> {/* Adjusted grid size slightly */}
+           <Paper elevation={2} sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 3, height: '100%' }}> {/* Use flex column and gap */}
+             {/* Search Bar Area */}
+             <Box>
                 <SearchBar />
-                {/* Search results would likely appear below the search input */}
              </Box>
+
+             {/* ***** START OF NEW CODE ***** */}
+             {/* Schedule Load/Create Controls Area */}
+             <Box>
+                <ScheduleControlPanel />
+             </Box>
+             {/* ***** END OF NEW CODE ***** */}
            </Paper>
         </Grid>
 
         {/* --- Right Pane (Schedule View) --- */}
-        {/*
-         * 'item' defines this as a Grid item.
-         * 'xs={12}' makes it full-width on extra-small screens.
-         * 'md={9}' makes it take up 9 out of 12 columns on medium screens and up (approx 3/4).
-         */}
-        <Grid item xs={12} md={9}>
-           {/* Use Paper for a visually distinct background/container for the schedule */}
-           <Paper elevation={2} sx={{ p: 2, height: '100%' }}> {/* Added padding and height */}
-             <Box sx={{ minHeight: 400 }}> {/* Ensure minimum height */}
-               {/* Placeholder for ScheduleView component */}
-               {/* <ScheduleView /> */}
+        <Grid item xs={12} md={8} lg={9}> {/* Adjusted grid size slightly */}
+           <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
+             <Box sx={{ minHeight: 500 }}> {/* Increased min height */}
+               {/* ScheduleView now reads directly from ScheduleContext */}
                <ScheduleView />
              </Box>
            </Paper>

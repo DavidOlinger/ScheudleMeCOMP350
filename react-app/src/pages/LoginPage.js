@@ -1,172 +1,249 @@
 // src/pages/LoginPage.js
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Hook for navigation after login
+// Import the useAuth hook
+import { useAuth } from '../context/AuthContext';
 
 // Import MUI components for the form layout and elements
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
-import Link from '@mui/material/Link'; // For potential "Forgot password?" or "Sign Up" links
+import Link from '@mui/material/Link';
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined'; // Icon for the avatar
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
-import Paper from '@mui/material/Paper'; // To give the form a distinct background
-import Alert from '@mui/material/Alert'; // To display login errors
+import Paper from '@mui/material/Paper';
+import Alert from '@mui/material/Alert';
 
 // Import the shared Layout component
 import Layout from '../components/Layout';
 
 /**
  * LoginPage Component
- * Provides a user interface for logging into the application.
+ * Provides a user interface for logging into the application or registering a new account.
  */
 function LoginPage() {
-  // Hook to programmatically navigate the user (e.g., after successful login)
-  const navigate = useNavigate();
+  // Get the login function from the AuthContext
+  const auth = useAuth();
 
   // State variables for form inputs
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState(''); // For registration
+  const [isRegisterMode, setIsRegisterMode] = useState(false); // Toggle between Login and Register
+  const [registerSuccess, setRegisterSuccess] = useState(null); // Message on successful registration
 
-  // State variables for handling login process feedback
+  // State variables for handling login/registration process feedback
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
   /**
-   * Handles the submission of the login form.
+   * Toggles between Login and Register modes, clearing errors and inputs.
+   */
+  const toggleMode = (event) => {
+      event.preventDefault(); // Prevent default link behavior
+      setIsRegisterMode(!isRegisterMode);
+      // Clear fields and errors when switching modes
+      setUsername('');
+      setPassword('');
+      setConfirmPassword('');
+      setError(null);
+      setRegisterSuccess(null);
+  };
+
+  /**
+   * Handles the submission of the login or registration form.
    * @param {React.FormEvent<HTMLFormElement>} event - The form submission event.
    */
   const handleSubmit = async (event) => {
-    event.preventDefault(); // Prevent default browser form submission
-    setError(null); // Clear previous errors
-    setIsLoading(true);
+    event.preventDefault();
+    setError(null);
+    setRegisterSuccess(null);
 
-    console.log('Attempting login with:', { username, password });
+    const currentUsername = username.trim(); // Use consistent trimmed username
+    const currentPassword = password; // Use raw password
 
-    // --- Placeholder for API Call ---
-    try {
-      // Construct the URL for the backend login endpoint
-      // IMPORTANT: Use your actual backend URL
-      const apiUrl = `http://localhost:7070/api/auth/login?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+    // --- Registration Mode ---
+    if (isRegisterMode) {
+        if (currentPassword !== confirmPassword) {
+            setError("Passwords do not match.");
+            return;
+        }
+        if (!currentUsername || !currentPassword) {
+            setError("Username and password cannot be empty.");
+            return;
+        }
 
-      // Your backend currently uses query parameters for login based on UserController
-      // If you change backend to expect JSON body, adjust fetch options accordingly:
-      // const response = await fetch('http://localhost:7070/api/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ username, password })
-      // });
+        setIsLoading(true);
+        console.log('Attempting registration with:', { username: currentUsername });
 
-      const response = await fetch(apiUrl, { method: 'POST' }); // Using POST as defined in UserController
+        try {
+            // 1. Call Create User API
+            const registerApiUrl = `http://localhost:7070/api/users?username=${encodeURIComponent(currentUsername)}&password=${encodeURIComponent(currentPassword)}`;
+            const registerResponse = await fetch(registerApiUrl, { method: 'POST' });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ // Try to parse error
-             message: `Login failed. Status: ${response.status}`
-        }));
-        throw new Error(errorData.message || `Login failed. Status: ${response.status}`);
-      }
+            if (!registerResponse.ok) {
+                const errorData = await registerResponse.json().catch(() => ({ message: `Registration failed. Status: ${registerResponse.status}` }));
+                throw new Error(errorData.error || errorData.message || `Registration failed. Status: ${registerResponse.status}`);
+            }
 
-      // Assuming successful login returns user data or a success message
-      const data = await response.json();
-      console.log('Login successful:', data);
+            const successData = await registerResponse.json();
+            console.log('Registration successful:', successData);
+            setRegisterSuccess(`Account '${currentUsername}' created! Logging you in...`); // Update message
 
-      // TODO: Handle successful login:
-      // 1. Store user session/token (if applicable)
-      // 2. Update global user state (e.g., using Context or state management library)
-      // 3. Navigate the user to the main page or dashboard
-      navigate('/'); // Navigate to the main page ('/') after successful login
+            // ***** START OF NEW CODE *****
+            // 2. Automatically attempt login after successful registration
+            console.log('Attempting auto-login for new user:', currentUsername);
+            try {
+                const loginApiUrl = `http://localhost:7070/api/auth/login?username=${encodeURIComponent(currentUsername)}&password=${encodeURIComponent(currentPassword)}`;
+                const loginResponse = await fetch(loginApiUrl, { method: 'POST' });
 
-    } catch (err) {
-      console.error("Login API call failed:", err);
-      setError(err.message || "An error occurred during login.");
-    } finally {
-      setIsLoading(false);
+                if (!loginResponse.ok) {
+                    // Handle login failure after registration (should be rare if registration succeeded)
+                    const loginErrorData = await loginResponse.json().catch(() => ({ message: `Auto-login failed. Status: ${loginResponse.status}` }));
+                    throw new Error(loginErrorData.error || loginErrorData.message || `Auto-login failed. Status: ${loginResponse.status}`);
+                }
+
+                const userData = await loginResponse.json();
+                console.log('Auto-login successful, user data received:', userData);
+                auth.login(userData); // Call context login to set user and navigate
+
+                // No need to clear form here, navigation will happen
+
+            } catch (loginErr) {
+                 // If auto-login fails, show error but inform user account was created
+                 console.error("Auto-login after registration failed:", loginErr);
+                 setError(`Account created, but auto-login failed: ${loginErr.message}. Please log in manually.`);
+                 setIsRegisterMode(false); // Switch to login mode so they can try
+                 // Clear form fields for manual login attempt
+                 setUsername('');
+                 setPassword('');
+                 setConfirmPassword('');
+            }
+            // ***** END OF NEW CODE *****
+
+        } catch (regErr) {
+             console.error("Registration API call failed:", regErr);
+             setError(regErr.message || "An error occurred during registration.");
+        } finally {
+            // Only set loading false if auto-login didn't navigate away
+            // Navigation might happen before this runs if login is fast
+            setIsLoading(false);
+        }
+
+    // --- Login Mode ---
+    } else {
+        if (!currentUsername || !currentPassword) {
+            setError("Username and password cannot be empty.");
+            return;
+        }
+        setIsLoading(true);
+        console.log('Attempting login with:', { username: currentUsername });
+        try {
+            const apiUrl = `http://localhost:7070/api/auth/login?username=${encodeURIComponent(currentUsername)}&password=${encodeURIComponent(currentPassword)}`;
+            const response = await fetch(apiUrl, { method: 'POST' });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: `Login failed. Status: ${response.status}` }));
+                throw new Error(errorData.error || errorData.message || `Login failed. Status: ${response.status}`);
+            }
+
+            const userData = await response.json();
+            console.log('Login successful, user data received:', userData);
+            auth.login(userData); // Call context login
+
+        } catch (err) {
+            console.error("Login API call failed:", err);
+            setError(err.message || "An error occurred during login.");
+        } finally {
+            setIsLoading(false);
+        }
     }
   };
 
   return (
-    // Use the Layout component to get the TopBar and consistent structure
     <Layout>
-      {/* Container centers the content horizontally and applies max width */}
-      <Container component="main" maxWidth="xs"> {/* 'xs' makes the container narrow, suitable for a login form */}
-        {/* Paper provides a distinct background and elevation for the form */}
+      <Container component="main" maxWidth="xs">
         <Paper elevation={3} sx={{ marginTop: 8, padding: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          {/* Avatar with a lock icon */}
-          <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>
-            <LockOutlinedIcon />
+          <Avatar sx={{ m: 1, bgcolor: isRegisterMode ? 'success.main' : 'secondary.main' }}>
+            {isRegisterMode ? <PersonAddAlt1Icon /> : <LockOutlinedIcon />}
           </Avatar>
           <Typography component="h1" variant="h5">
-            Sign in
+            {isRegisterMode ? 'Sign Up' : 'Sign In'}
           </Typography>
 
-          {/* Display login errors */}
           {error && (
             <Alert severity="error" sx={{ width: '100%', mt: 2 }}>
               {error}
             </Alert>
           )}
+          {registerSuccess && !error && (
+             <Alert severity="success" sx={{ width: '100%', mt: 2 }}>
+              {registerSuccess}
+            </Alert>
+          )}
 
-          {/* Form element */}
           <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1, width: '100%' }}>
-            {/* Username Input */}
             <TextField
               margin="normal"
-              required // Basic HTML5 validation
+              required
               fullWidth
               id="username"
               label="Username"
               name="username"
-              autoComplete="username" // Helps browser autofill
-              autoFocus // Focus this field when the page loads
+              autoComplete="username"
+              autoFocus
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              disabled={isLoading} // Disable while loading
+              disabled={isLoading}
             />
-            {/* Password Input */}
             <TextField
               margin="normal"
               required
               fullWidth
               name="password"
               label="Password"
-              type="password" // Hides password input
+              type="password"
               id="password"
-              autoComplete="current-password"
+              autoComplete={isRegisterMode ? "new-password" : "current-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
             />
-            {/* Optional: Add a "Remember me" checkbox here if needed */}
-            {/* <FormControlLabel
-              control={<Checkbox value="remember" color="primary" />}
-              label="Remember me"
-            /> */}
 
-            {/* Submit Button */}
+            {isRegisterMode && (
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  name="confirmPassword"
+                  label="Confirm Password"
+                  type="password"
+                  id="confirmPassword"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={isLoading}
+                />
+            )}
+
             <Button
               type="submit"
               fullWidth
-              variant="contained" // Gives it a background color and elevation
-              sx={{ mt: 3, mb: 2 }} // Margin top and bottom
-              disabled={isLoading} // Disable button while login is in progress
+              variant="contained"
+              sx={{ mt: 3, mb: 2 }}
+              disabled={isLoading}
+              color={isRegisterMode ? "success" : "primary"}
             >
-              {isLoading ? 'Signing In...' : 'Sign In'}
+              {isLoading ? (isRegisterMode ? 'Signing Up...' : 'Signing In...') : (isRegisterMode ? 'Sign Up' : 'Sign In')}
             </Button>
 
-            {/* Optional Links (Forgot Password, Sign Up) */}
-            <Grid container>
-              <Grid item xs>
-                {/* Placeholder link */}
-                <Link href="#" variant="body2">
-                  Forgot password?
-                </Link>
-              </Grid>
+            <Grid container justifyContent="flex-end">
               <Grid item>
-                {/* Placeholder link - TODO: Link to a registration page */}
-                <Link href="#" variant="body2">
-                  {"Don't have an account? Sign Up"}
+                <Link href="#" variant="body2" onClick={toggleMode}>
+                  {isRegisterMode ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
                 </Link>
               </Grid>
             </Grid>
