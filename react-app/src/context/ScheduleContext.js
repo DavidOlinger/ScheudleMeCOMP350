@@ -41,50 +41,33 @@ export const ScheduleProvider = ({ children }) => {
   const [isControlLoading, setIsControlLoading] = useState(false); // Specific loading for load/create
   const [isAddingCustom, setIsAddingCustom] = useState(false); // Specific loading for custom event add
   const [customEventError, setCustomEventError] = useState(null); // Specific error for custom event add
-
-  // /**********************************************************************/
-  // /* START OF NEW CODE                                                  */
-  // /**********************************************************************/
-  // State for Undo/Redo operations
-  const [isUndoing, setIsUndoing] = useState(false);
-  const [isRedoing, setIsRedoing] = useState(false);
-  const [undoRedoError, setUndoRedoError] = useState(null);
-  // Note: We don't have canUndo/canRedo state yet, as the backend doesn't provide it easily.
-  // Buttons will be disabled based on loading state for now.
-  // /**********************************************************************/
-  // /* END OF NEW CODE                                                    */
-  // /**********************************************************************/
+  const [isUndoing, setIsUndoing] = useState(false); // Loading for undo
+  const [isRedoing, setIsRedoing] = useState(false); // Loading for redo
+  const [undoRedoError, setUndoRedoError] = useState(null); // Specific error for undo/redo
+  const [isSharing, setIsSharing] = useState(false); // Loading for share operation
+  const [shareError, setShareError] = useState(null); // Specific error for share operation
+  const [sharePath, setSharePath] = useState(null); // Store only the path part (e.g., /s/TOKEN)
 
 
   // --- Schedule Management Functions ---
 
-  const fetchSchedule = useCallback(async () => { /* ... implementation from previous complete file ... */
+  const fetchSchedule = useCallback(async () => {
     if (!currentUser) {
       console.log("ScheduleContext: No user, clearing schedule.");
       setScheduleData(null);
       setError(null); setIsLoading(false); setControlError(null); setIsControlLoading(false); setCustomEventError(null); setIsAddingCustom(false);
-      // /**********************************************************************/
-      // /* START OF NEW CODE                                                  */
-      // /**********************************************************************/
-      setIsUndoing(false); setIsRedoing(false); setUndoRedoError(null); // Clear undo/redo state on logout
-      // /**********************************************************************/
-      // /* END OF NEW CODE                                                    */
-      // /**********************************************************************/
+      setIsUndoing(false); setIsRedoing(false); setUndoRedoError(null);
+      setIsSharing(false); setShareError(null); setSharePath(null); // Clear share path
       return;
     }
     console.log("ScheduleContext: Fetching current schedule...");
     setIsLoading(true); setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null);
-    // /**********************************************************************/
-    // /* START OF NEW CODE                                                  */
-    // /**********************************************************************/
-    setUndoRedoError(null); // Clear undo/redo error on fetch
-    // /**********************************************************************/
-    // /* END OF NEW CODE                                                    */
-    // /**********************************************************************/
+    setUndoRedoError(null);
+    setShareError(null); setSharePath(null); // Clear share path
 
     try {
       const apiUrl = 'http://localhost:7070/api/schedule/current';
-      const response = await fetch(apiUrl);
+      const response = await fetch(apiUrl); // Define response here
       if (!response.ok) {
         let errorData;
         try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
@@ -114,120 +97,65 @@ export const ScheduleProvider = ({ children }) => {
   // ===============================================================
   // Updated addCourse function (includes section)
   // ===============================================================
-  /**
-   * Adds a specific course section to the current schedule.
-   * Sends subject, courseCode, and section to the backend.
-   * @param {object} course - The full course object from search results.
-   * @returns {boolean} - True if successful, false otherwise.
-   */
   const addCourse = async (course) => {
-     // Basic checks
-     if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') {
-         setError("Please load or create a schedule to add courses.");
-         return false;
-     }
-     // Validate required course properties including section
-     if (!course || !course.subject || typeof course.courseCode !== 'number' || !course.section) { // Check for section
-         console.error("ScheduleContext: Invalid course object passed to addCourse:", course);
-         setError("Cannot add course: missing subject, course code, or section."); // Updated error message
-         return false;
-     }
-     // Prevent concurrent operations
-     // /**********************************************************************/
-     // /* START OF MODIFICATION                                              */
-     // /**********************************************************************/
-     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) { // Add undo/redo checks
-     // /**********************************************************************/
-     // /* END OF MODIFICATION                                                */
-     // /**********************************************************************/
-         console.log("ScheduleContext: Already processing, cannot add course now.");
-         return false;
-     }
+     if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') { setError("Please load or create a schedule to add courses."); return false; }
+     if (!course || !course.subject || typeof course.courseCode !== 'number' || !course.section) { setError("Cannot add course: missing subject, course code, or section."); return false; }
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing || isSharing) { console.log("ScheduleContext: Already processing..."); return false; }
 
-    console.log("ScheduleContext: Attempting to add course:", course.subject, course.courseCode, course.section); // Log section
-    // Use general loading/error states for adding courses
-    setIsLoading(true);
-    setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null);
-    // /**********************************************************************/
-    // /* START OF NEW CODE                                                  */
-    // /**********************************************************************/
-    setUndoRedoError(null); // Clear undo/redo error
-    // /**********************************************************************/
-    // /* END OF NEW CODE                                                    */
-    // /**********************************************************************/
+     setIsLoading(true); setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null); setUndoRedoError(null); setShareError(null); setSharePath(null);
 
-    try {
-      const apiUrl = 'http://localhost:7070/api/schedule/current/add';
-      // --- Prepare request body with subject, courseCode, AND section ---
-      const requestBody = {
-          subject: course.subject,
-          courseCode: course.courseCode,
-          section: course.section // Include the section
-      };
-      // --- Send the updated request body ---
-      const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody) // Send subject, code, & section
-      });
+     try {
+       const apiUrl = 'http://localhost:7070/api/schedule/current/add';
+       const requestBody = {
+           subject: course.subject,
+           courseCode: course.courseCode,
+           section: course.section
+       };
+       // Define response inside try block
+       const response = await fetch(apiUrl, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify(requestBody)
+       });
 
-      // Handle response (conflict, other errors, success)
-      if (!response.ok) {
-        let errorData; try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
-         if (response.status === 409) { // Conflict
-             throw new Error(errorData.error || errorData.message || "Conflict detected. Course not added.");
-         } else { // Other errors
-            throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
-         }
-      }
-      // If successful, update schedule state
-      const updatedSchedule = await parseJsonResponse(response);
-      console.log("ScheduleContext: Course added, updated schedule received:", updatedSchedule);
-      setScheduleData({ ...updatedSchedule, events: Array.isArray(updatedSchedule.events) ? updatedSchedule.events : [] });
-      setError(null); // Clear error on success
-      return true; // Indicate success
-    } catch (err) {
-      console.error("ScheduleContext: Failed to add course:", err);
-      setError(err.message || "Could not add course."); // Set general error
-      return false; // Indicate failure
-    } finally {
-      setIsLoading(false); // Reset general loading state
-    }
+       if (!response.ok) {
+         let errorData; try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
+          if (response.status === 409) {
+              throw new Error(errorData.error || errorData.message || "Conflict detected. Course not added.");
+          } else {
+             throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
+          }
+       }
+       const updatedSchedule = await parseJsonResponse(response);
+       console.log("ScheduleContext: Course added, updated schedule received:", updatedSchedule);
+       setScheduleData({ ...updatedSchedule, events: Array.isArray(updatedSchedule.events) ? updatedSchedule.events : [] });
+       setError(null);
+       return true;
+     } catch (err) {
+       console.error("ScheduleContext: Failed to add course:", err);
+       setError(err.message || "Could not add course.");
+       return false;
+     } finally {
+       setIsLoading(false);
+     }
   };
   // ===============================================================
 
-  const removeCourse = async (course) => { /* ... implementation from previous complete file ... */
-    if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') { setError("Please load or create a schedule to remove courses."); return; }
-     // /**********************************************************************/
-     // /* START OF MODIFICATION                                              */
-     // /**********************************************************************/
-     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) { // Add undo/redo checks
-     // /**********************************************************************/
-     // /* END OF MODIFICATION                                                */
-     // /**********************************************************************/
-        console.log("ScheduleContext: Already processing, cannot remove course now."); return;
-     }
-     // Ensure courseCode is valid before making the call
-     if (typeof course.courseCode !== 'number') {
-         console.error("ScheduleContext: Invalid course data passed to removeCourse", course);
-         setError("Invalid course data provided for removal (missing courseCode).");
-         return;
-     }
-    console.log("ScheduleContext: Attempting to remove course:", course.courseCode);
-    setIsLoading(true); setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null);
-    // /**********************************************************************/
-    // /* START OF NEW CODE                                                  */
-    // /**********************************************************************/
-    setUndoRedoError(null); // Clear undo/redo error
-    // /**********************************************************************/
-    // /* END OF NEW CODE                                                    */
-    // /**********************************************************************/
+  const removeCourse = async (course) => {
+     if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') { setError("Please load or create a schedule."); return; }
+     if (typeof course.courseCode !== 'number') { setError("Invalid course data."); return; }
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing || isSharing) { console.log("ScheduleContext: Already processing..."); return; }
+
+     setIsLoading(true); setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null); setUndoRedoError(null); setShareError(null); setSharePath(null);
 
      try {
-       // Use the DELETE endpoint which expects courseCode in the URL
        const apiUrl = `http://localhost:7070/api/schedule/current/remove/${course.courseCode}`;
+       // Define response inside try block
        const response = await fetch(apiUrl, { method: 'DELETE' });
-        if (!response.ok) { let errorData; try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; } throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`); }
+        if (!response.ok) {
+            let errorData; try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
+            throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
+        }
         const updatedSchedule = await parseJsonResponse(response);
         console.log("ScheduleContext: Course removed, updated schedule received:", updatedSchedule);
         setScheduleData({ ...updatedSchedule, events: Array.isArray(updatedSchedule.events) ? updatedSchedule.events : [] });
@@ -239,180 +167,119 @@ export const ScheduleProvider = ({ children }) => {
         setIsLoading(false);
     }
    };
-  const removeEvent = async (eventData) => { /* ... implementation from previous complete file ... */
-    if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') {
-      setError("Please load or create a schedule to remove events."); // Use general error state
-      return false;
-    }
-    // Validate that the event object has the necessary properties for identification
-    if (!eventData || !eventData.name || typeof eventData.days === 'undefined' || !eventData.time ||
-        typeof eventData.time.startTime !== 'number' || typeof eventData.time.endTime !== 'number') {
-       console.error("ScheduleContext: Invalid event data passed to removeEvent", eventData);
-       setError("Invalid event data provided for removal.");
-       return false;
-    }
-     // Prevent concurrent operations
-     // /**********************************************************************/
-     // /* START OF MODIFICATION                                              */
-     // /**********************************************************************/
-     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) { // Add undo/redo checks
-     // /**********************************************************************/
-     // /* END OF MODIFICATION                                                */
-     // /**********************************************************************/
-        console.log("ScheduleContext: Already processing, cannot remove event now.");
-        return false; // Indicate failure without setting error
-    }
 
-    console.log("ScheduleContext: Attempting to remove event:", eventData.name);
-    setIsLoading(true); // Use general loading state for simplicity here
-    // Reset all error/status states before the operation
-    setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null);
-    // /**********************************************************************/
-    // /* START OF NEW CODE                                                  */
-    // /**********************************************************************/
-    setUndoRedoError(null); // Clear undo/redo error
-    // /**********************************************************************/
-    // /* END OF NEW CODE                                                    */
-    // /**********************************************************************/
+  const removeEvent = async (eventData) => {
+     if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') { setError("Please load or create a schedule."); return false; }
+     if (!eventData || !eventData.name || typeof eventData.days === 'undefined' || !eventData.time || typeof eventData.time.startTime !== 'number' || typeof eventData.time.endTime !== 'number') { setError("Invalid event data."); return false; }
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing || isSharing) { console.log("ScheduleContext: Already processing..."); return false; }
 
-    try {
-      // Use the new POST endpoint designed for removing any event by its details
-      const apiUrl = 'http://localhost:7070/api/schedule/current/remove-event';
-      // Prepare the request body with the identifying details
-      // The backend expects time in seconds
-      const requestBody = {
-          name: eventData.name,
-          days: eventData.days,
-          startTimeSeconds: eventData.time.startTime,
-          endTimeSeconds: eventData.time.endTime
-      };
-      const response = await fetch(apiUrl, {
-          method: 'POST', // Use POST as defined in the backend fix
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
-      });
-        // Check for HTTP errors
+     setIsLoading(true); setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null); setUndoRedoError(null); setShareError(null); setSharePath(null);
+
+     try {
+       const apiUrl = 'http://localhost:7070/api/schedule/current/remove-event';
+       const requestBody = {
+           name: eventData.name,
+           days: eventData.days,
+           startTimeSeconds: eventData.time.startTime,
+           endTimeSeconds: eventData.time.endTime
+       };
+       // Define response inside try block
+       const response = await fetch(apiUrl, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify(requestBody)
+       });
         if (!response.ok) {
             let errorData;
             try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
             throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
         }
-        // If successful, parse the updated schedule from the response
         const updatedSchedule = await parseJsonResponse(response);
         console.log("ScheduleContext: Event removed, updated schedule received:", updatedSchedule);
-        // Update the local state
         setScheduleData({ ...updatedSchedule, events: Array.isArray(updatedSchedule.events) ? updatedSchedule.events : [] });
-        return true; // Indicate success
-    } catch (err) {
-         // Handle any errors during fetch or processing
+        return true;
+     } catch (err) {
          console.error("ScheduleContext: Failed to remove event:", err);
-         setError(err.message || "Could not remove event."); // Use general error state
-         return false; // Indicate failure
-    } finally {
-        setIsLoading(false); // Reset general loading state
-    }
-   };
-  const saveSchedule = async () => { /* ... implementation from previous complete file ... */
-    if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') { setSaveStatus({ saving: false, error: "No active schedule to save.", success: false }); return; }
-     // /**********************************************************************/
-     // /* START OF MODIFICATION                                              */
-     // /**********************************************************************/
-     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) { // Add undo/redo checks
-     // /**********************************************************************/
-     // /* END OF MODIFICATION                                                */
-     // /**********************************************************************/
-        console.log("ScheduleContext: Already processing, cannot save schedule now."); return;
+         setError(err.message || "Could not remove event.");
+         return false;
+     } finally {
+         setIsLoading(false);
      }
-    console.log("ScheduleContext: Attempting to save schedule:", scheduleData.name);
-    setSaveStatus({ saving: true, error: null, success: false }); setError(null); setControlError(null); setCustomEventError(null);
-    // /**********************************************************************/
-    // /* START OF NEW CODE                                                  */
-    // /**********************************************************************/
-    setUndoRedoError(null); // Clear undo/redo error
-    // /**********************************************************************/
-    // /* END OF NEW CODE                                                    */
-    // /**********************************************************************/
-
-    try {
-      const apiUrl = 'http://localhost:7070/api/schedules/save';
-      const response = await fetch(apiUrl, { method: 'POST' });
-        if (!response.ok) { let errorData; try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; } throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`); }
-        const result = await parseJsonResponse(response);
-      console.log("ScheduleContext: Save successful:", result.message);
-      setSaveStatus({ saving: false, error: null, success: true });
-      setTimeout(() => setSaveStatus(prev => ({ ...prev, success: false })), 3000);
-    } catch (err) {
-      console.error("ScheduleContext: Failed to save schedule:", err);
-      setSaveStatus({ saving: false, error: err.message || "Could not save schedule.", success: false });
-    }
    };
-  const loadSchedule = async (scheduleName) => { /* ... implementation from previous complete file ... */
-    if (!currentUser) { setControlError("Not logged in."); return; }
+
+  const saveSchedule = async () => {
+     if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') { setSaveStatus({ saving: false, error: "No active schedule to save.", success: false }); return; }
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing || isSharing) { console.log("ScheduleContext: Already processing..."); return; }
+
+     setSaveStatus({ saving: true, error: null, success: false }); setError(null); setControlError(null); setCustomEventError(null); setUndoRedoError(null); setShareError(null); setSharePath(null);
+
+     try {
+       const apiUrl = 'http://localhost:7070/api/schedules/save';
+       // Define response inside try block
+       const response = await fetch(apiUrl, { method: 'POST' });
+        if (!response.ok) {
+            let errorData; try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
+            throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
+        }
+        const result = await parseJsonResponse(response); // Use parseJsonResponse helper
+        console.log("ScheduleContext: Save successful:", result.message);
+        setSaveStatus({ saving: false, error: null, success: true });
+        setTimeout(() => setSaveStatus(prev => ({ ...prev, success: false })), 3000);
+     } catch (err) {
+       console.error("ScheduleContext: Failed to save schedule:", err);
+       setSaveStatus({ saving: false, error: err.message || "Could not save schedule.", success: false });
+     }
+     // No finally block needed here as setSaveStatus handles loading state
+   };
+
+  const loadSchedule = async (scheduleName) => {
+     if (!currentUser) { setControlError("Not logged in."); return; }
      if (!scheduleName || !scheduleName.trim()) { setControlError("Please select a schedule name."); return; }
-     // /**********************************************************************/
-     // /* START OF MODIFICATION                                              */
-     // /**********************************************************************/
-     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) { // Add undo/redo checks
-     // /**********************************************************************/
-     // /* END OF MODIFICATION                                                */
-     // /**********************************************************************/
-        console.log("ScheduleContext: Already processing, cannot load schedule now."); return;
-     }
-    console.log("ScheduleContext: Attempting to load schedule:", scheduleName);
-    setIsControlLoading(true); setControlError(null); setError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null);
-    // /**********************************************************************/
-    // /* START OF NEW CODE                                                  */
-    // /**********************************************************************/
-    setUndoRedoError(null); // Clear undo/redo error
-    // /**********************************************************************/
-    // /* END OF NEW CODE                                                    */
-    // /**********************************************************************/
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing || isSharing) { console.log("ScheduleContext: Already processing..."); return; }
 
-    try {
-      const apiUrl = `http://localhost:7070/api/schedules/load/${encodeURIComponent(scheduleName.trim())}`;
-      const response = await fetch(apiUrl, { method: 'PUT' });
-        if (!response.ok) { let errorData; try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; } throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`); }
+     setIsControlLoading(true); setControlError(null); setError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null); setUndoRedoError(null); setShareError(null); setSharePath(null);
+
+     try {
+       const apiUrl = `http://localhost:7070/api/schedules/load/${encodeURIComponent(scheduleName.trim())}`;
+       // Define response inside try block
+       const response = await fetch(apiUrl, { method: 'PUT' });
+        if (!response.ok) {
+            let errorData; try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
+            throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
+        }
         const loadedData = await parseJsonResponse(response);
-      console.log("ScheduleContext: Schedule loaded successfully:", loadedData);
-      setScheduleData({ ...loadedData, events: Array.isArray(loadedData.events) ? loadedData.events : [] });
-      setControlError(null);
-    } catch (err) {
-      console.error("ScheduleContext: Failed to load schedule:", err);
-      setControlError(err.message || "Could not load the selected schedule.");
-    } finally {
-      setIsControlLoading(false);
-    }
-   };
-  const createNewSchedule = async (scheduleName) => { /* ... implementation from previous complete file ... */
-    if (!currentUser) { setControlError("Not logged in."); return; }
-     if (!scheduleName || !scheduleName.trim()) { setControlError("Please enter a schedule name."); return; }
-     // /**********************************************************************/
-     // /* START OF MODIFICATION                                              */
-     // /**********************************************************************/
-     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) { // Add undo/redo checks
-     // /**********************************************************************/
-     // /* END OF MODIFICATION                                                */
-     // /**********************************************************************/
-        console.log("ScheduleContext: Already processing, cannot create schedule now."); return;
+        console.log("ScheduleContext: Schedule loaded successfully:", loadedData);
+        setScheduleData({ ...loadedData, events: Array.isArray(loadedData.events) ? loadedData.events : [] });
+        setControlError(null);
+     } catch (err) {
+       console.error("ScheduleContext: Failed to load schedule:", err);
+       setControlError(err.message || "Could not load the selected schedule.");
+     } finally {
+       setIsControlLoading(false);
      }
-    console.log("ScheduleContext: Attempting to create schedule:", scheduleName);
-    setIsControlLoading(true); setControlError(null); setError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null);
-    // /**********************************************************************/
-    // /* START OF NEW CODE                                                  */
-    // /**********************************************************************/
-    setUndoRedoError(null); // Clear undo/redo error
-    // /**********************************************************************/
-    // /* END OF NEW CODE                                                    */
-    // /**********************************************************************/
+  };
 
-    try {
+  const createNewSchedule = async (scheduleName) => {
+     if (!currentUser) { setControlError("Not logged in."); return; }
+     if (!scheduleName || !scheduleName.trim()) { setControlError("Please enter a schedule name."); return; }
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing || isSharing) { console.log("ScheduleContext: Already processing..."); return; }
+
+     setIsControlLoading(true); setControlError(null); setError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null); setUndoRedoError(null); setShareError(null); setSharePath(null);
+
+     try {
         const apiUrl = 'http://localhost:7070/api/schedules/new';
-        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: scheduleName.trim() }) });
+        // Define response inside try block
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: scheduleName.trim() })
+        });
          if (!response.ok) {
             let errorData; try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
              if (response.status === 409) { throw new Error(errorData.error || errorData.message || "A schedule with this name already exists."); }
              else { throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`); }
         }
+        // Define responseData inside try block
         const responseData = await parseJsonResponse(response);
         const newSchedule = responseData.schedule;
         const updatedUser = responseData.user;
@@ -422,150 +289,162 @@ export const ScheduleProvider = ({ children }) => {
         setScheduleData({ ...newSchedule, events: Array.isArray(newSchedule.events) ? newSchedule.events : [] });
         setControlError(null);
         updateCurrentUser(updatedUser); // Update user in AuthContext
-    } catch (err) {
+     } catch (err) {
         console.error("ScheduleContext: Failed to create schedule:", err);
         setControlError(err.message || "Could not create the new schedule.");
-    } finally {
+     } finally {
         setIsControlLoading(false);
-    }
-   };
-  const addCustomEvent = async (eventData) => { /* ... implementation from previous complete file ... */
-    if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') { setCustomEventError("Please load or create a schedule to add events."); return false; }
-    // /**********************************************************************/
-    // /* START OF MODIFICATION                                              */
-    // /**********************************************************************/
-    if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) { // Add undo/redo checks
-    // /**********************************************************************/
-    // /* END OF MODIFICATION                                                */
-    // /**********************************************************************/
-       console.log("ScheduleContext: Already processing, cannot add custom event now."); return false;
-    }
-    console.log("ScheduleContext: Attempting to add custom event:", eventData.name);
-    setIsAddingCustom(true); setCustomEventError(null); setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false });
-    // /**********************************************************************/
-    // /* START OF NEW CODE                                                  */
-    // /**********************************************************************/
-    setUndoRedoError(null); // Clear undo/redo error
-    // /**********************************************************************/
-    // /* END OF NEW CODE                                                    */
-    // /**********************************************************************/
+     }
+  };
 
-    try {
-      const apiUrl = 'http://localhost:7070/api/schedule/current/add-custom';
-      const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(eventData) });
-      if (!response.ok) {
-        let errorData; try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
-         if (response.status === 409) { throw new Error(errorData.error || errorData.message || "Conflict detected. Event not added."); }
-         else { throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`); }
-      }
-      const updatedSchedule = await parseJsonResponse(response);
-      console.log("ScheduleContext: Custom event added, updated schedule received:", updatedSchedule);
-      setScheduleData({ ...updatedSchedule, events: Array.isArray(updatedSchedule.events) ? updatedSchedule.events : [] });
-      setCustomEventError(null);
-      return true; // Indicate success
-    } catch (err) {
-      console.error("ScheduleContext: Failed to add custom event:", err);
-      setCustomEventError(err.message || "Could not add the custom event.");
-      return false; // Indicate failure
-    } finally {
-      setIsAddingCustom(false);
-    }
-   };
+  const addCustomEvent = async (eventData) => {
+     if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') { setCustomEventError("Please load or create a schedule."); return false; }
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing || isSharing) { console.log("ScheduleContext: Already processing..."); return false; }
 
-  // /**********************************************************************/
-  // /* START OF NEW CODE                                                  */
-  // /**********************************************************************/
-  /**
-   * Calls the backend endpoint to undo the last action.
-   * Updates the schedule data on success.
-   */
+     setIsAddingCustom(true); setCustomEventError(null); setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false }); setUndoRedoError(null); setShareError(null); setSharePath(null);
+
+     try {
+       const apiUrl = 'http://localhost:7070/api/schedule/current/add-custom';
+       // Define response inside try block
+       const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(eventData)
+       });
+       if (!response.ok) {
+         let errorData; try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
+          if (response.status === 409) { throw new Error(errorData.error || errorData.message || "Conflict detected. Event not added."); }
+          else { throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`); }
+       }
+       const updatedSchedule = await parseJsonResponse(response);
+       console.log("ScheduleContext: Custom event added, updated schedule received:", updatedSchedule);
+       setScheduleData({ ...updatedSchedule, events: Array.isArray(updatedSchedule.events) ? updatedSchedule.events : [] });
+       setCustomEventError(null);
+       return true;
+     } catch (err) {
+       console.error("ScheduleContext: Failed to add custom event:", err);
+       setCustomEventError(err.message || "Could not add the custom event.");
+       return false;
+     } finally {
+       setIsAddingCustom(false);
+     }
+  };
+
   const undoSchedule = async () => {
-    // Prevent concurrent operations
-    if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) {
-        console.log("ScheduleContext: Already processing, cannot undo now.");
-        return;
-    }
-    // Check user and active schedule
-    if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') {
-        setUndoRedoError("Please load a schedule to perform undo.");
-        return;
-    }
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing || isSharing) { console.log("ScheduleContext: Already processing..."); return; }
+     if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') { setUndoRedoError("Please load a schedule."); return; }
 
-    console.log("ScheduleContext: Attempting to undo last action...");
-    setIsUndoing(true);
-    setUndoRedoError(null); // Clear previous undo/redo errors
-    // Also clear other specific errors? Maybe keep general error for context?
-    setError(null); setControlError(null); setCustomEventError(null);
+     setIsUndoing(true); setUndoRedoError(null); setError(null); setControlError(null); setCustomEventError(null); setShareError(null); setSharePath(null);
 
-    try {
-      const apiUrl = 'http://localhost:7070/api/schedule/current/undo';
-      const response = await fetch(apiUrl, { method: 'POST' });
+     try {
+       const apiUrl = 'http://localhost:7070/api/schedule/current/undo';
+       // Define response inside try block
+       const response = await fetch(apiUrl, { method: 'POST' });
 
-      if (!response.ok) {
-        let errorData;
-        try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
-        throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
-      }
+       if (!response.ok) {
+         let errorData;
+         try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
+         throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
+       }
 
-      // If successful, backend returns the updated schedule
-      const updatedSchedule = await parseJsonResponse(response);
-      console.log("ScheduleContext: Undo successful, updated schedule received:", updatedSchedule);
-      setScheduleData({ ...updatedSchedule, events: Array.isArray(updatedSchedule.events) ? updatedSchedule.events : [] });
+       const updatedSchedule = await parseJsonResponse(response);
+       console.log("ScheduleContext: Undo successful, updated schedule received:", updatedSchedule);
+       setScheduleData({ ...updatedSchedule, events: Array.isArray(updatedSchedule.events) ? updatedSchedule.events : [] });
 
-    } catch (err) {
-      console.error("ScheduleContext: Failed to undo:", err);
-      setUndoRedoError(err.message || "Could not perform undo."); // Set specific undo/redo error
-    } finally {
-      setIsUndoing(false);
-    }
+     } catch (err) {
+       console.error("ScheduleContext: Failed to undo:", err);
+       setUndoRedoError(err.message || "Could not perform undo.");
+     } finally {
+       setIsUndoing(false);
+     }
   };
 
-  /**
-   * Calls the backend endpoint to redo the last undone action.
-   * Updates the schedule data on success.
-   */
   const redoSchedule = async () => {
-    // Prevent concurrent operations
-    if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) {
-        console.log("ScheduleContext: Already processing, cannot redo now.");
-        return;
-    }
-    // Check user and active schedule
-    if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') {
-        setUndoRedoError("Please load a schedule to perform redo.");
-        return;
-    }
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing || isSharing) { console.log("ScheduleContext: Already processing..."); return; }
+     if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') { setUndoRedoError("Please load a schedule."); return; }
 
-    console.log("ScheduleContext: Attempting to redo last action...");
-    setIsRedoing(true);
-    setUndoRedoError(null); // Clear previous undo/redo errors
-    setError(null); setControlError(null); setCustomEventError(null);
+     setIsRedoing(true); setUndoRedoError(null); setError(null); setControlError(null); setCustomEventError(null); setShareError(null); setSharePath(null);
+
+     try {
+       const apiUrl = 'http://localhost:7070/api/schedule/current/redo';
+       // Define response inside try block
+       const response = await fetch(apiUrl, { method: 'POST' });
+
+       if (!response.ok) {
+         let errorData;
+         try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
+         throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
+       }
+
+       const updatedSchedule = await parseJsonResponse(response);
+       console.log("ScheduleContext: Redo successful, updated schedule received:", updatedSchedule);
+       setScheduleData({ ...updatedSchedule, events: Array.isArray(updatedSchedule.events) ? updatedSchedule.events : [] });
+
+     } catch (err) {
+       console.error("ScheduleContext: Failed to redo:", err);
+       setUndoRedoError(err.message || "Could not perform redo.");
+     } finally {
+       setIsRedoing(false);
+     }
+  };
+
+  const shareSchedule = async (scheduleName) => {
+    if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing || isSharing) { console.log("ScheduleContext: Already processing..."); return; }
+    if (!currentUser || !scheduleName) { setShareError("Cannot share: User not logged in or no schedule name provided."); return; }
+
+    console.log(`ScheduleContext: Initiating share for schedule: ${scheduleName}`);
+    setIsSharing(true); setShareError(null); setSharePath(null);
+    setError(null); setControlError(null); setCustomEventError(null); setUndoRedoError(null);
+
+    let scheduleToShare = null;
 
     try {
-      const apiUrl = 'http://localhost:7070/api/schedule/current/redo';
-      const response = await fetch(apiUrl, { method: 'POST' });
+      // Step 1: Fetch schedule content from Java API
+      console.log(`ScheduleContext: Fetching content for '${scheduleName}' from Java API...`);
+      const loadApiUrl = `http://localhost:7070/api/schedules/load/${encodeURIComponent(scheduleName.trim())}`;
+      const loadResponse = await fetch(loadApiUrl, { method: 'PUT' }); // Define loadResponse
 
-      if (!response.ok) {
-        let errorData;
-        try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
-        throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
+      if (!loadResponse.ok) {
+        let errorData; try { errorData = await parseJsonResponse(loadResponse); } catch (parseError) { throw parseError; }
+        throw new Error(`Failed to load schedule content: ${errorData.error || errorData.message || `HTTP ${loadResponse.status}`}`);
       }
+      scheduleToShare = await parseJsonResponse(loadResponse);
+      console.log(`ScheduleContext: Content for '${scheduleName}' fetched.`);
 
-      // If successful, backend returns the updated schedule
-      const updatedSchedule = await parseJsonResponse(response);
-      console.log("ScheduleContext: Redo successful, updated schedule received:", updatedSchedule);
-      setScheduleData({ ...updatedSchedule, events: Array.isArray(updatedSchedule.events) ? updatedSchedule.events : [] });
+      if (!scheduleToShare || !scheduleToShare.name || typeof scheduleToShare.events === 'undefined') { throw new Error("Invalid schedule data received from Java API."); }
+
+      // Step 2: Send content to Rails API
+      console.log(`ScheduleContext: Sending content for '${scheduleName}' to Rails API...`);
+      const railsApiUrl = 'http://localhost:3000/api/v1/schedules/share';
+      const payload = {
+        username: currentUser.name,
+        schedule_name: scheduleToShare.name,
+        schedule_content: JSON.stringify(scheduleToShare)
+      };
+      // Define shareResponse inside try block
+      const shareResponse = await fetch(railsApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+
+      if (!shareResponse.ok) {
+         let errorData; try { errorData = await parseJsonResponse(shareResponse); } catch (parseError) { throw parseError; }
+         throw new Error(`Failed to create share link: ${errorData.error || errorData.message || `HTTP ${shareResponse.status}`}`);
+      }
+      const shareResult = await parseJsonResponse(shareResponse);
+      if (!shareResult.share_url) { throw new Error("Rails API did not return a share URL."); }
+
+      // Extract PATH ONLY
+      const urlObject = new URL(shareResult.share_url);
+      const path = urlObject.pathname;
+      console.log(`ScheduleContext: Share path created: ${path}`);
+      setSharePath(path); // Set path state
 
     } catch (err) {
-      console.error("ScheduleContext: Failed to redo:", err);
-      setUndoRedoError(err.message || "Could not perform redo."); // Set specific undo/redo error
+      console.error("ScheduleContext: Failed to share schedule:", err);
+      setShareError(err.message || "Could not share schedule.");
+      setSharePath(null);
     } finally {
-      setIsRedoing(false);
+      setIsSharing(false);
     }
   };
-  // /**********************************************************************/
-  // /* END OF NEW CODE                                                    */
-  // /**********************************************************************/
 
 
   // Value provided by the context provider
@@ -578,31 +457,24 @@ export const ScheduleProvider = ({ children }) => {
     controlError,
     isAddingCustom,
     customEventError,
-    // /**********************************************************************/
-    // /* START OF NEW CODE                                                  */
-    // /**********************************************************************/
     isUndoing,
     isRedoing,
     undoRedoError,
-    // /**********************************************************************/
-    // /* END OF NEW CODE                                                    */
-    // /**********************************************************************/
+    isSharing,
+    shareError,
+    sharePath,    // Export the path state
+    setSharePath, // Export setter to allow clearing
     fetchSchedule,
-    addCourse,      // Updated addCourse (now includes section)
-    removeCourse,   // Original removeCourse (by code)
-    removeEvent,    // New removeEvent (by details)
+    addCourse,
+    removeCourse,
+    removeEvent,
     saveSchedule,
     loadSchedule,
     createNewSchedule,
     addCustomEvent,
-    // /**********************************************************************/
-    // /* START OF NEW CODE                                                  */
-    // /**********************************************************************/
     undoSchedule,
-    redoSchedule
-    // /**********************************************************************/
-    // /* END OF NEW CODE                                                    */
-    // /**********************************************************************/
+    redoSchedule,
+    shareSchedule // Export share function
   };
 
   return <ScheduleContext.Provider value={value}>{children}</ScheduleContext.Provider>;
