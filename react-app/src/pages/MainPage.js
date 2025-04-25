@@ -1,6 +1,5 @@
 // src/pages/MainPage.js
 import React from 'react';
-import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper'; // Used for visual separation of panes
 
@@ -10,54 +9,93 @@ import Layout from '../components/Layout';
 // Import components for search, schedule view, and controls
 import SearchBar from '../components/SearchBar';
 import ScheduleView from '../components/ScheduleView';
-// ***** START OF NEW CODE *****
 import ScheduleControlPanel from '../components/ScheduleControlPanel';
-// ***** END OF NEW CODE *****
+
+// Define the width for the sidebar
+const SIDEBAR_WIDTH = 420; // Adjust this value as needed (in pixels)
 
 /**
- * MainPage Component
- * Represents the main view of the schedule builder application.
- * Uses a two-pane layout:
- * - Left pane (smaller): Contains course search and schedule management controls.
- * - Right pane (larger): Displays the weekly schedule view.
+ * MainPage Component (Updated)
+ * Represents the main view using a fixed-width sidebar layout.
+ * - Left Sidebar: Contains course search and schedule management controls.
+ * - Main Content: Displays the weekly schedule view.
  */
 function MainPage() {
   return (
-    // Wrap the entire page content within the Layout component
+    // Use the Layout component (which now provides padding)
     <Layout>
-      <Grid container spacing={3}>
+      {/* Use Flexbox for the main two-column layout */}
+      {/* Attempt to make the main content area fill the viewport height below the TopBar */}
+      <Box sx={{
+          display: 'flex',
+          gap: 3,
+          // Calculate height: 100vh (viewport height) - TopBar height (approx 64px) - Layout padding (24px top + 24px bottom = 48px)
+          // Adjust 64px if your TopBar height is different.
+          height: 'calc(100vh - 64px - 48px)',
+          overflow: 'hidden' // Prevent this container from scrolling
+         }}
+      >
 
-        {/* --- Left Pane (Search & Controls) --- */}
-        <Grid item xs={12} md={4} lg={3}> {/* Adjusted grid size slightly */}
-           <Paper elevation={2} sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 3, height: '100%' }}> {/* Use flex column and gap */}
-             {/* Search Bar Area */}
+        {/* --- Left Sidebar --- */}
+        <Box
+          sx={{
+            width: SIDEBAR_WIDTH,
+            flexShrink: 0, // Prevent sidebar from shrinking
+            display: 'flex', // Use flexbox for children arrangement
+            flexDirection: 'column', // Stack children vertically
+            height: '100%', // Make sidebar take full height of the flex container
+          }}
+        >
+           {/* Use Paper for background and elevation */}
+           {/* Apply overflowY: 'auto' ONLY to the Paper to allow scrolling *within* the sidebar */}
+           <Paper
+             elevation={2}
+             sx={{
+               p: 2, // Padding inside the sidebar paper
+               display: 'flex',
+               flexDirection: 'column',
+               gap: 3, // Space between SearchBar and ControlPanel
+               flexGrow: 1, // Allow paper to grow vertically
+               overflowY: 'auto', // Allow scrolling *within* the sidebar if needed
+               // Add position relative so Popper can calculate width correctly if needed
+               position: 'relative'
+             }}
+           >
+             {/* Search Bar Area - Stays at the top */}
+             {/* SearchBar component itself will handle the results overlay */}
              <Box>
                 <SearchBar />
              </Box>
 
-             {/* ***** START OF NEW CODE ***** */}
              {/* Schedule Load/Create Controls Area */}
-             <Box>
+             {/* This will be potentially overlaid by search results */}
+             {/* flexGrow allows this section to take remaining space if needed, pushing footer down */}
+             <Box sx={{ flexGrow: 1 }}>
                 <ScheduleControlPanel />
              </Box>
-             {/* ***** END OF NEW CODE ***** */}
            </Paper>
-        </Grid>
+        </Box>
 
-        {/* --- Right Pane (Schedule View) --- */}
-        <Grid item xs={12} md={8} lg={9}> {/* Adjusted grid size slightly */}
-           <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
-             <Box sx={{ minHeight: 500 }}> {/* Increased min height */}
-               {/* ScheduleView now reads directly from ScheduleContext */}
+        {/* --- Main Content Area (Schedule View) --- */}
+        <Box
+          sx={{
+            flexGrow: 1, // Takes up remaining horizontal space
+            height: '100%', // Take full height
+            overflow: 'hidden' // Prevent this Box from scrolling
+          }}
+        >
+           {/* Paper provides background. Allow scrolling *within* the schedule paper */}
+           <Paper elevation={2} sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+             {/* Box inside Paper ensures content starts correctly */}
+             <Box sx={{ minHeight: 500 }}> {/* Ensure schedule has min height */}
                <ScheduleView />
              </Box>
            </Paper>
-        </Grid>
+        </Box>
 
-      </Grid>
+      </Box>
     </Layout>
   );
 }
 
-// Export the component for use in App.js (or your routing setup)
 export default MainPage;

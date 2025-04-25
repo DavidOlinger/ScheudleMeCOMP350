@@ -1,239 +1,272 @@
 // src/components/SearchBar.js
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react'; // Added useEffect
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
-import ListItemButton from '@mui/material/ListItemButton'; // Makes list items clickable
+import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
-import CircularProgress from '@mui/material/CircularProgress'; // Loading indicator
-import Alert from '@mui/material/Alert'; // Error display
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'; // Icon for adding
-// ***** START OF NEW CODE *****
-// Import the useSchedule hook
-import { useSchedule } from '../context/ScheduleContext';
-// ***** END OF NEW CODE *****
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import Paper from '@mui/material/Paper'; // For Popper content background
+import Popper from '@mui/material/Popper'; // The overlay component
+import ClickAwayListener from '@mui/material/ClickAwayListener'; // To close Popper on outside click
+import Fade from '@mui/material/Fade'; // Optional: Add transition
 
+// Import the useSchedule hook
+// Assuming you have a ScheduleContext set up like in previous examples
+// If not, you might need to pass addCourse down as a prop or adjust this.
+import { useSchedule } from '../context/ScheduleContext';
 
 /**
- * SearchBar Component
- * Provides an input field to search for courses via the backend API
- * and displays the results in a list. Allows adding courses via ScheduleContext.
+ * SearchBar Component (Updated)
+ * Provides course search input and displays results in an overlay Popper.
  */
 const SearchBar = () => {
-  // ***** START OF NEW CODE *****
-  // Get addCourse function and schedule context error/loading state
-  const { addCourse, isLoading: isScheduleLoading, error: scheduleError } = useSchedule();
-  // ***** END OF NEW CODE *****
+  // Assuming useSchedule hook provides these values
+  // Provide default fallback functions/values if context might not be ready
+  const scheduleContext = useSchedule();
+  const addCourse = scheduleContext?.addCourse || (() => console.error("addCourse function not available from context."));
+  const isScheduleLoading = scheduleContext?.isLoading || false;
+  const scheduleError = scheduleContext?.error || null;
 
-  // State for the search input value
+
   const [query, setQuery] = useState('');
-  // State to store the list of course results from the API
   const [results, setResults] = useState([]);
-  // State to indicate if the *search* API call is in progress
   const [isSearchLoading, setIsSearchLoading] = useState(false);
-  // State to store any error messages during the *search* API call
   const [searchError, setSearchError] = useState(null);
-  // State to track if a search has been performed at least once
   const [hasSearched, setHasSearched] = useState(false);
+
+  // --- Popper State ---
+  const [openResults, setOpenResults] = useState(false); // Controls Popper visibility
+  const anchorElRef = useRef(null); // Ref to anchor the Popper to (the TextField)
+  const [popperWidth, setPopperWidth] = useState(0); // State to store anchor width
+
+  // --- Update Popper Width ---
+  useEffect(() => {
+    // Function to update popper width based on anchor element
+    const updateWidth = () => {
+      if (anchorElRef.current) {
+        setPopperWidth(anchorElRef.current.clientWidth);
+      }
+    };
+    // Update width initially and on resize when popper is open
+    if (openResults) {
+        updateWidth();
+        window.addEventListener('resize', updateWidth);
+    } else {
+         window.removeEventListener('resize', updateWidth);
+    }
+    // Cleanup listener
+    return () => window.removeEventListener('resize', updateWidth);
+  }, [openResults]); // Re-calculate width when Popper opens/closes
 
   // --- Event Handlers ---
 
-  /**
-   * Updates the query state as the user types in the TextField.
-   * @param {React.ChangeEvent<HTMLInputElement>} event - The input change event.
-   */
   const handleInputChange = (event) => {
     setQuery(event.target.value);
+    // Close results if input is cleared manually
+    if (event.target.value === '') {
+       setOpenResults(false);
+       setResults([]);
+       setHasSearched(false);
+       setSearchError(null);
+    }
   };
 
-  /**
-   * Handles triggering the search when the search icon is clicked
-   * or the Enter key is pressed.
-   */
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     if (!query.trim()) {
-        // Don't search if the query is empty or just whitespace
-        setResults([]);
-        setSearchError(null);
-        setHasSearched(true); // Mark as searched even if empty
-        return;
+      setResults([]);
+      setSearchError(null);
+      setHasSearched(true);
+      setOpenResults(false);
+      return;
     }
 
-    setIsSearchLoading(true); // Use dedicated loading state for search
+    setIsSearchLoading(true);
     setSearchError(null);
-    setResults([]); // Clear previous results
-    setHasSearched(true); // Mark that a search attempt has been made
+    setResults([]);
+    setHasSearched(true);
+    setOpenResults(true); // Open Popper when search starts
 
     try {
-      // Construct the URL for the backend API endpoint
+      // Ensure your backend URL is correct
       const apiUrl = `http://localhost:7070/api/courses/search?query=${encodeURIComponent(query.trim())}`;
-
       const response = await fetch(apiUrl);
-
       if (!response.ok) {
-        // Handle HTTP errors (e.g., 404, 500)
-        const errorData = await response.json().catch(() => ({ // Try to parse error response
-             message: `HTTP error! Status: ${response.status}`
-        }));
+        const errorData = await response.json().catch(() => ({ message: `HTTP error! Status: ${response.status}` }));
         throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
       }
-
-      const data = await response.json(); // Parse the JSON response body
-      setResults(Array.isArray(data) ? data : []); // Ensure results is always an array
-
+      const data = await response.json();
+      const resultsArray = Array.isArray(data) ? data : [];
+      setResults(resultsArray);
+      // Keep popper open even if no results, to show the message
     } catch (err) {
       console.error("Search API call failed:", err);
-      setSearchError(err.message || "Failed to fetch search results. Please try again.");
-      setResults([]); // Clear results on error
+      setSearchError(err.message || "Failed to fetch search results.");
+      setResults([]);
+      setOpenResults(true); // Keep popper open to show error
     } finally {
-      // Ensure loading indicator is turned off regardless of success or failure
       setIsSearchLoading(false);
     }
-  };
+  }, [query]);
 
-  /**
-   * Handles the Enter key press in the TextField to trigger a search.
-   * @param {React.KeyboardEvent} event - The keyboard event.
-   */
-  const handleKeyPress = (event) => {
+  const handleKeyPress = useCallback((event) => {
     if (event.key === 'Enter') {
       handleSearch();
     }
-  };
+  }, [handleSearch]);
 
-  /**
-   * Handles adding a course using the ScheduleContext function.
-   * @param {object} course - The course object selected from the results.
-   */
   const handleAddCourseClick = (course) => {
     console.log("SearchBar: Add course clicked:", course.courseCode);
-    // ***** START OF NEW CODE *****
-    // Call the addCourse function from the context
-    addCourse(course);
-    // Context handles API call, state update, loading, and errors
-    // The ScheduleView will automatically update if the context state changes.
-    // ***** END OF NEW CODE *****
-    // alert(`Placeholder: Add ${course.subject} ${course.courseCode} to schedule.`); // Removed placeholder
+    addCourse(course); // Call function from context (or props)
+    setOpenResults(false); // Close results after adding a course
   };
 
+  // --- Popper Control ---
+  const handleFocus = () => {
+    // Optionally open if there are previous results or errors?
+    // For now, only open on explicit search.
+  };
 
-  // --- JSX Rendering ---
-  // Determine overall loading state (either searching or schedule updating)
+  const handleClickAway = (event) => {
+      // Close if the click is outside the anchor element AND the popper itself
+      // The check for anchorElRef.current.contains is important
+      if (anchorElRef.current && !anchorElRef.current.contains(event.target)) {
+         setOpenResults(false);
+      }
+  };
+
+  // Determine overall loading state
   const overallLoading = isSearchLoading || isScheduleLoading;
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}> {/* Use Box for layout and spacing */}
-      <Typography variant="h6" component="div">
-        Course Search
-      </Typography>
+    // ClickAwayListener wraps the input and the Popper logic
+    <ClickAwayListener onClickAway={handleClickAway}>
+      {/* Container Box needs position relative for Popper positioning context */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, position: 'relative' }}>
+        <Typography variant="h6" component="div">
+          Course Search
+        </Typography>
 
-      {/* Search Input Field */}
-      <TextField
-        label="Search Courses (e.g., COMP 101, Intro Bio)"
-        variant="outlined"
-        fullWidth // Take up full width of its container
-        value={query}
-        onChange={handleInputChange}
-        onKeyPress={handleKeyPress} // Trigger search on Enter key
-        disabled={overallLoading} // Disable input if anything is loading
-        InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              <IconButton
-                aria-label="search courses"
-                onClick={handleSearch}
-                edge="end"
-                disabled={overallLoading} // Disable button if anything is loading
-              >
-                {/* Show spinner only for search loading */}
-                {isSearchLoading ? <CircularProgress size={24} /> : <SearchIcon />}
-              </IconButton>
-            </InputAdornment>
-          ),
-        }}
-      />
+        {/* Search Input Field - This is the anchor for the Popper */}
+        <TextField
+          label="Search Courses (e.g., COMP 101)"
+          variant="outlined"
+          fullWidth
+          value={query}
+          onChange={handleInputChange}
+          onKeyPress={handleKeyPress}
+          onFocus={handleFocus} // Handle focus if needed
+          disabled={overallLoading}
+          inputRef={anchorElRef} // Assign the ref here
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  aria-label="search courses"
+                  onClick={handleSearch}
+                  edge="end"
+                  disabled={overallLoading || !query.trim()} // Also disable if query is empty
+                >
+                  {isSearchLoading ? <CircularProgress size={24} /> : <SearchIcon />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
 
-      {/* Loading Indicator for Schedule Actions (Add/Remove/Save) */}
-      {/* This is separate from the search spinner */}
-      {isScheduleLoading && <CircularProgress size={20} sx={{ alignSelf: 'center', my: 1 }} />}
+        {/* Popper for displaying results overlay */}
+        <Popper
+          open={openResults}
+          anchorEl={anchorElRef.current} // Anchor to the TextField
+          placement="bottom-start" // Position below the TextField
+          transition // Enable transition
+          modifiers={[ // Prevent Popper from overflowing viewport
+            { name: 'offset', options: { offset: [0, 4] } }, // Add small vertical offset
+            { name: 'preventOverflow', options: { boundary: 'clippingParents' } },
+          ]}
+          style={{ zIndex: 1200 }} // Ensure Popper is above other elements
+          // Set width dynamically based on the anchor element's width
+          sx={{ width: popperWidth > 0 ? `${popperWidth}px` : 'auto' }}
+        >
+          {/* Optional Fade transition */}
+          {({ TransitionProps }) => (
+            <Fade {...TransitionProps} timeout={350}>
+                {/* Paper provides background and elevation for the Popper content */}
+                <Paper elevation={4} sx={{ mt: 0.5 }}>
+                    {/* Loading Indicator inside Popper */}
+                    {isSearchLoading && <CircularProgress sx={{ display: 'block', margin: '20px auto' }} />}
 
-      {/* Error Display for Search */}
-      {searchError && (
-        <Alert severity="error" sx={{ mt: 1 }}>
-          Search Error: {searchError}
-        </Alert>
-      )}
-       {/* Error Display for Schedule Actions (Add/Remove/Save) */}
-       {/* Display schedule context errors here as well, as they might relate to add attempts */}
-      {scheduleError && (
-        <Alert severity="warning" sx={{ mt: 1 }}>
-          Schedule Error: {scheduleError}
-        </Alert>
-      )}
+                    {/* Error Display inside Popper */}
+                    {searchError && !isSearchLoading && (
+                    <Alert severity="error" sx={{ m: 1, borderRadius: 0 }}> {/* Remove border radius for cleaner look */}
+                        Search Error: {searchError}
+                    </Alert>
+                    )}
 
+                    {/* Schedule Action Error Display inside Popper */}
+                    {scheduleError && !isSearchLoading && (
+                    <Alert severity="warning" sx={{ m: 1, borderRadius: 0 }}>
+                        Schedule Error: {scheduleError}
+                    </Alert>
+                    )}
 
-      {/* Search Results List */}
-      <Box sx={{ mt: 1 }}> {/* Add some margin top before results */}
-        {/* Only show results list area if a search has been attempted */}
-        {hasSearched && !isSearchLoading && !searchError && (
-            <Typography variant="subtitle1" gutterBottom>
-                Results ({results.length})
-            </Typography>
-        )}
+                    {/* Display message if no results found after searching */}
+                    {hasSearched && !isSearchLoading && !searchError && results.length === 0 && (
+                    <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+                        No courses found matching your query.
+                    </Typography>
+                    )}
 
-        {/* Display message if no results found after searching */}
-        {hasSearched && !isSearchLoading && !searchError && results.length === 0 && (
-          <Typography variant="body2" color="text.secondary">
-            No courses found matching your query.
-          </Typography>
-        )}
-
-        {/* Render the list if there are results and search isn't loading */}
-        {results.length > 0 && !isSearchLoading && (
-          <List dense sx={{ maxHeight: 400, overflow: 'auto', bgcolor: 'background.paper' }}> {/* Make list scrollable */}
-            {results.map((course) => (
-              <ListItem
-                key={`${course.subject}-${course.courseCode}-${course.section}`} // Create a unique key
-                disablePadding
-                secondaryAction={ // Action button on the right
-                  <IconButton
-                    edge="end"
-                    aria-label={`add ${course.name}`}
-                    // ***** START OF NEW CODE *****
-                    onClick={() => handleAddCourseClick(course)} // Use the new handler
-                    // ***** END OF NEW CODE *****
-                    title={`Add ${course.subject} ${course.courseCode} to schedule`}
-                    disabled={isScheduleLoading} // Disable add if schedule is being updated
-                  >
-                    {/* Show spinner in button if schedule is loading? Maybe too much. */}
-                    <AddCircleOutlineIcon />
-                  </IconButton>
-                }
-              >
-                {/* Use ListItemButton to make the main text area potentially clickable later if needed */}
-                <ListItemButton dense>
-                  <ListItemText
-                    primary={`${course.subject} ${course.courseCode} - ${course.name}`}
-                    // Safely access nested properties, provide defaults
-                    secondary={`Sec: ${course.section || 'N/A'} | Prof: ${course.professor?.name || 'N/A'} | Days: ${course.days || 'N/A'} | Loc: ${course.location || 'N/A'} | Time: ${course.time?.startTime ? `${formatTime(course.time.startTime)} - ${formatTime(course.time.endTime)}` : 'N/A'}`}
-                    secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} // Smaller secondary text
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-        )}
+                    {/* Render the list if there are results */}
+                    {results.length > 0 && !isSearchLoading && (
+                    <List dense sx={{ maxHeight: 300, overflow: 'auto', p: 0 }}> {/* Limit height, make scrollable, remove padding */}
+                        {results.map((course) => (
+                        <ListItem
+                            key={`${course.subject}-${course.courseCode}-${course.section}`}
+                            disablePadding
+                            divider // Add divider between items
+                            secondaryAction={
+                            <IconButton
+                                edge="end"
+                                aria-label={`add ${course.name}`}
+                                onClick={() => handleAddCourseClick(course)}
+                                title={`Add ${course.subject} ${course.courseCode} to schedule`}
+                                disabled={isScheduleLoading}
+                                sx={{ mr: 1 }} // Add margin to icon button
+                            >
+                                <AddCircleOutlineIcon />
+                            </IconButton>
+                            }
+                        >
+                            <ListItemButton dense sx={{ pl: 2, pr: 1 }}> {/* Adjust padding */}
+                            <ListItemText
+                                primary={`${course.subject} ${course.courseCode} - ${course.name}`}
+                                secondary={`Sec: ${course.section || 'N/A'} | Prof: ${course.professor?.name || 'N/A'} | Days: ${course.days || 'N/A'} | Loc: ${course.location || 'N/A'} | Time: ${course.time?.startTime ? `${formatTime(course.time.startTime)} - ${formatTime(course.time.endTime)}` : 'N/A'}`}
+                                secondaryTypographyProps={{ sx: { fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }} // Prevent wrapping
+                                primaryTypographyProps={{ sx: { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }} // Prevent wrapping
+                            />
+                            </ListItemButton>
+                        </ListItem>
+                        ))}
+                    </List>
+                    )}
+                </Paper>
+            </Fade>
+           )}
+        </Popper>
       </Box>
-    </Box>
+    </ClickAwayListener>
   );
 };
 
-// Helper to format time (copy from ScheduleView or import from utils)
+// Helper to format time (ensure this is consistent)
 const formatTime = (seconds) => {
     if (typeof seconds !== 'number' || isNaN(seconds)) return 'N/A';
     const totalMinutes = Math.floor(seconds / 60);
