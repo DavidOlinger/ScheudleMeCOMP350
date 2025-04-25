@@ -89,6 +89,17 @@ public class ScheduleController {
         app.post("/api/schedule/current/add-custom", ctx -> addCustomEventToCurrentSchedule(ctx, scheduleManager));
         app.delete("/api/schedule/current/remove/{courseCode}", ctx -> removeCourseFromCurrentSchedule(ctx, scheduleManager));
         app.post("/api/schedule/current/remove-event", ctx -> removeEventFromCurrentSchedule(ctx, scheduleManager));
+
+        // /**********************************************************************/
+        // /* START OF NEW CODE                                                  */
+        // /**********************************************************************/
+        // --- Undo/Redo Endpoints ---
+        app.post("/api/schedule/current/undo", ctx -> undoLastAction(ctx, scheduleManager));
+        app.post("/api/schedule/current/redo", ctx -> redoLastAction(ctx, scheduleManager));
+        // /**********************************************************************/
+        // /* END OF NEW CODE                                                    */
+        // /**********************************************************************/
+
         // --- Endpoints for MANAGING saved schedules ---
         app.get("/api/schedules", ctx -> listSavedSchedules(ctx, scheduleManager));
         app.put("/api/schedules/load/{scheduleName}", ctx -> loadSchedule(ctx, scheduleManager));
@@ -635,5 +646,76 @@ public class ScheduleController {
     }
 
     // --- End Handler Methods ---
+
+    // /**********************************************************************/
+    // /* START OF NEW CODE                                                  */
+    // /**********************************************************************/
+    /**
+     * Handles POST requests to undo the last action on the current schedule.
+     * @param ctx The Javalin context.
+     * @param scheduleManager The schedule manager instance.
+     */
+    private static void undoLastAction(Context ctx, ScheduleManager scheduleManager) {
+        System.out.println(">>> ENTERED undoLastAction handler");
+        if (scheduleManager.user == null) {
+            ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "User not logged in"));
+            return;
+        }
+        if (ScheduleManager.getCurrentSchedule() == null) {
+            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "No active schedule to perform undo on"));
+            return;
+        }
+
+        try {
+            boolean success = scheduleManager.undo();
+            if (success) {
+                System.out.println("Undo successful via API.");
+                ctx.status(200).json(ScheduleManager.getCurrentSchedule()); // Return the updated schedule
+            } else {
+                System.out.println("Undo failed (no actions to undo) via API.");
+                // Use 400 Bad Request or 409 Conflict? 400 seems reasonable if nothing to undo.
+                ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Nothing to undo"));
+            }
+        } catch (Exception e) {
+            System.err.println("Undo unexpected error: " + e.getMessage());
+            e.printStackTrace();
+            ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Undo failed due to an unexpected error."));
+        }
+    }
+
+    /**
+     * Handles POST requests to redo the last undone action on the current schedule.
+     * @param ctx The Javalin context.
+     * @param scheduleManager The schedule manager instance.
+     */
+    private static void redoLastAction(Context ctx, ScheduleManager scheduleManager) {
+        System.out.println(">>> ENTERED redoLastAction handler");
+        if (scheduleManager.user == null) {
+            ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "User not logged in"));
+            return;
+        }
+        if (ScheduleManager.getCurrentSchedule() == null) {
+            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "No active schedule to perform redo on"));
+            return;
+        }
+
+        try {
+            boolean success = scheduleManager.redo();
+            if (success) {
+                System.out.println("Redo successful via API.");
+                ctx.status(200).json(ScheduleManager.getCurrentSchedule()); // Return the updated schedule
+            } else {
+                System.out.println("Redo failed (no actions to redo) via API.");
+                ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Nothing to redo"));
+            }
+        } catch (Exception e) {
+            System.err.println("Redo unexpected error: " + e.getMessage());
+            e.printStackTrace();
+            ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Redo failed due to an unexpected error."));
+        }
+    }
+    // /**********************************************************************/
+    // /* END OF NEW CODE                                                    */
+    // /**********************************************************************/
 
 } // End of ScheduleController class

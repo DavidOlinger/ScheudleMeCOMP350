@@ -34,13 +34,26 @@ export const ScheduleProvider = ({ children }) => {
 
   // State variables...
   const [scheduleData, setScheduleData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false); // General loading for add/remove/fetch
+  const [error, setError] = useState(null); // General error for add/remove/fetch
   const [saveStatus, setSaveStatus] = useState({ saving: false, error: null, success: false });
-  const [controlError, setControlError] = useState(null);
-  const [isControlLoading, setIsControlLoading] = useState(false);
-  const [isAddingCustom, setIsAddingCustom] = useState(false);
-  const [customEventError, setCustomEventError] = useState(null);
+  const [controlError, setControlError] = useState(null); // Specific error for load/create
+  const [isControlLoading, setIsControlLoading] = useState(false); // Specific loading for load/create
+  const [isAddingCustom, setIsAddingCustom] = useState(false); // Specific loading for custom event add
+  const [customEventError, setCustomEventError] = useState(null); // Specific error for custom event add
+
+  // /**********************************************************************/
+  // /* START OF NEW CODE                                                  */
+  // /**********************************************************************/
+  // State for Undo/Redo operations
+  const [isUndoing, setIsUndoing] = useState(false);
+  const [isRedoing, setIsRedoing] = useState(false);
+  const [undoRedoError, setUndoRedoError] = useState(null);
+  // Note: We don't have canUndo/canRedo state yet, as the backend doesn't provide it easily.
+  // Buttons will be disabled based on loading state for now.
+  // /**********************************************************************/
+  // /* END OF NEW CODE                                                    */
+  // /**********************************************************************/
 
 
   // --- Schedule Management Functions ---
@@ -49,11 +62,25 @@ export const ScheduleProvider = ({ children }) => {
     if (!currentUser) {
       console.log("ScheduleContext: No user, clearing schedule.");
       setScheduleData(null);
-      setError(null); setIsLoading(false); setControlError(null); setIsControlLoading(false); setCustomEventError(null); setIsAddingCustom(false); // Clear all states
+      setError(null); setIsLoading(false); setControlError(null); setIsControlLoading(false); setCustomEventError(null); setIsAddingCustom(false);
+      // /**********************************************************************/
+      // /* START OF NEW CODE                                                  */
+      // /**********************************************************************/
+      setIsUndoing(false); setIsRedoing(false); setUndoRedoError(null); // Clear undo/redo state on logout
+      // /**********************************************************************/
+      // /* END OF NEW CODE                                                    */
+      // /**********************************************************************/
       return;
     }
     console.log("ScheduleContext: Fetching current schedule...");
-    setIsLoading(true); setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null); // Reset errors/status
+    setIsLoading(true); setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null);
+    // /**********************************************************************/
+    // /* START OF NEW CODE                                                  */
+    // /**********************************************************************/
+    setUndoRedoError(null); // Clear undo/redo error on fetch
+    // /**********************************************************************/
+    // /* END OF NEW CODE                                                    */
+    // /**********************************************************************/
 
     try {
       const apiUrl = 'http://localhost:7070/api/schedule/current';
@@ -106,7 +133,13 @@ export const ScheduleProvider = ({ children }) => {
          return false;
      }
      // Prevent concurrent operations
-     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom) {
+     // /**********************************************************************/
+     // /* START OF MODIFICATION                                              */
+     // /**********************************************************************/
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) { // Add undo/redo checks
+     // /**********************************************************************/
+     // /* END OF MODIFICATION                                                */
+     // /**********************************************************************/
          console.log("ScheduleContext: Already processing, cannot add course now.");
          return false;
      }
@@ -115,6 +148,13 @@ export const ScheduleProvider = ({ children }) => {
     // Use general loading/error states for adding courses
     setIsLoading(true);
     setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null);
+    // /**********************************************************************/
+    // /* START OF NEW CODE                                                  */
+    // /**********************************************************************/
+    setUndoRedoError(null); // Clear undo/redo error
+    // /**********************************************************************/
+    // /* END OF NEW CODE                                                    */
+    // /**********************************************************************/
 
     try {
       const apiUrl = 'http://localhost:7070/api/schedule/current/add';
@@ -158,7 +198,15 @@ export const ScheduleProvider = ({ children }) => {
 
   const removeCourse = async (course) => { /* ... implementation from previous complete file ... */
     if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') { setError("Please load or create a schedule to remove courses."); return; }
-     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom) { console.log("ScheduleContext: Already processing, cannot remove course now."); return; }
+     // /**********************************************************************/
+     // /* START OF MODIFICATION                                              */
+     // /**********************************************************************/
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) { // Add undo/redo checks
+     // /**********************************************************************/
+     // /* END OF MODIFICATION                                                */
+     // /**********************************************************************/
+        console.log("ScheduleContext: Already processing, cannot remove course now."); return;
+     }
      // Ensure courseCode is valid before making the call
      if (typeof course.courseCode !== 'number') {
          console.error("ScheduleContext: Invalid course data passed to removeCourse", course);
@@ -167,6 +215,13 @@ export const ScheduleProvider = ({ children }) => {
      }
     console.log("ScheduleContext: Attempting to remove course:", course.courseCode);
     setIsLoading(true); setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null);
+    // /**********************************************************************/
+    // /* START OF NEW CODE                                                  */
+    // /**********************************************************************/
+    setUndoRedoError(null); // Clear undo/redo error
+    // /**********************************************************************/
+    // /* END OF NEW CODE                                                    */
+    // /**********************************************************************/
 
      try {
        // Use the DELETE endpoint which expects courseCode in the URL
@@ -197,7 +252,13 @@ export const ScheduleProvider = ({ children }) => {
        return false;
     }
      // Prevent concurrent operations
-     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom) {
+     // /**********************************************************************/
+     // /* START OF MODIFICATION                                              */
+     // /**********************************************************************/
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) { // Add undo/redo checks
+     // /**********************************************************************/
+     // /* END OF MODIFICATION                                                */
+     // /**********************************************************************/
         console.log("ScheduleContext: Already processing, cannot remove event now.");
         return false; // Indicate failure without setting error
     }
@@ -206,6 +267,13 @@ export const ScheduleProvider = ({ children }) => {
     setIsLoading(true); // Use general loading state for simplicity here
     // Reset all error/status states before the operation
     setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null);
+    // /**********************************************************************/
+    // /* START OF NEW CODE                                                  */
+    // /**********************************************************************/
+    setUndoRedoError(null); // Clear undo/redo error
+    // /**********************************************************************/
+    // /* END OF NEW CODE                                                    */
+    // /**********************************************************************/
 
     try {
       // Use the new POST endpoint designed for removing any event by its details
@@ -246,9 +314,24 @@ export const ScheduleProvider = ({ children }) => {
    };
   const saveSchedule = async () => { /* ... implementation from previous complete file ... */
     if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') { setSaveStatus({ saving: false, error: "No active schedule to save.", success: false }); return; }
-     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom) { console.log("ScheduleContext: Already processing, cannot save schedule now."); return; }
+     // /**********************************************************************/
+     // /* START OF MODIFICATION                                              */
+     // /**********************************************************************/
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) { // Add undo/redo checks
+     // /**********************************************************************/
+     // /* END OF MODIFICATION                                                */
+     // /**********************************************************************/
+        console.log("ScheduleContext: Already processing, cannot save schedule now."); return;
+     }
     console.log("ScheduleContext: Attempting to save schedule:", scheduleData.name);
     setSaveStatus({ saving: true, error: null, success: false }); setError(null); setControlError(null); setCustomEventError(null);
+    // /**********************************************************************/
+    // /* START OF NEW CODE                                                  */
+    // /**********************************************************************/
+    setUndoRedoError(null); // Clear undo/redo error
+    // /**********************************************************************/
+    // /* END OF NEW CODE                                                    */
+    // /**********************************************************************/
 
     try {
       const apiUrl = 'http://localhost:7070/api/schedules/save';
@@ -266,9 +349,24 @@ export const ScheduleProvider = ({ children }) => {
   const loadSchedule = async (scheduleName) => { /* ... implementation from previous complete file ... */
     if (!currentUser) { setControlError("Not logged in."); return; }
      if (!scheduleName || !scheduleName.trim()) { setControlError("Please select a schedule name."); return; }
-     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom) { console.log("ScheduleContext: Already processing, cannot load schedule now."); return; }
+     // /**********************************************************************/
+     // /* START OF MODIFICATION                                              */
+     // /**********************************************************************/
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) { // Add undo/redo checks
+     // /**********************************************************************/
+     // /* END OF MODIFICATION                                                */
+     // /**********************************************************************/
+        console.log("ScheduleContext: Already processing, cannot load schedule now."); return;
+     }
     console.log("ScheduleContext: Attempting to load schedule:", scheduleName);
     setIsControlLoading(true); setControlError(null); setError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null);
+    // /**********************************************************************/
+    // /* START OF NEW CODE                                                  */
+    // /**********************************************************************/
+    setUndoRedoError(null); // Clear undo/redo error
+    // /**********************************************************************/
+    // /* END OF NEW CODE                                                    */
+    // /**********************************************************************/
 
     try {
       const apiUrl = `http://localhost:7070/api/schedules/load/${encodeURIComponent(scheduleName.trim())}`;
@@ -288,9 +386,24 @@ export const ScheduleProvider = ({ children }) => {
   const createNewSchedule = async (scheduleName) => { /* ... implementation from previous complete file ... */
     if (!currentUser) { setControlError("Not logged in."); return; }
      if (!scheduleName || !scheduleName.trim()) { setControlError("Please enter a schedule name."); return; }
-     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom) { console.log("ScheduleContext: Already processing, cannot create schedule now."); return; }
+     // /**********************************************************************/
+     // /* START OF MODIFICATION                                              */
+     // /**********************************************************************/
+     if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) { // Add undo/redo checks
+     // /**********************************************************************/
+     // /* END OF MODIFICATION                                                */
+     // /**********************************************************************/
+        console.log("ScheduleContext: Already processing, cannot create schedule now."); return;
+     }
     console.log("ScheduleContext: Attempting to create schedule:", scheduleName);
     setIsControlLoading(true); setControlError(null); setError(null); setSaveStatus({ saving: false, error: null, success: false }); setCustomEventError(null);
+    // /**********************************************************************/
+    // /* START OF NEW CODE                                                  */
+    // /**********************************************************************/
+    setUndoRedoError(null); // Clear undo/redo error
+    // /**********************************************************************/
+    // /* END OF NEW CODE                                                    */
+    // /**********************************************************************/
 
     try {
         const apiUrl = 'http://localhost:7070/api/schedules/new';
@@ -318,9 +431,24 @@ export const ScheduleProvider = ({ children }) => {
    };
   const addCustomEvent = async (eventData) => { /* ... implementation from previous complete file ... */
     if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') { setCustomEventError("Please load or create a schedule to add events."); return false; }
-    if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom) { console.log("ScheduleContext: Already processing, cannot add custom event now."); return false; }
+    // /**********************************************************************/
+    // /* START OF MODIFICATION                                              */
+    // /**********************************************************************/
+    if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) { // Add undo/redo checks
+    // /**********************************************************************/
+    // /* END OF MODIFICATION                                                */
+    // /**********************************************************************/
+       console.log("ScheduleContext: Already processing, cannot add custom event now."); return false;
+    }
     console.log("ScheduleContext: Attempting to add custom event:", eventData.name);
     setIsAddingCustom(true); setCustomEventError(null); setError(null); setControlError(null); setSaveStatus({ saving: false, error: null, success: false });
+    // /**********************************************************************/
+    // /* START OF NEW CODE                                                  */
+    // /**********************************************************************/
+    setUndoRedoError(null); // Clear undo/redo error
+    // /**********************************************************************/
+    // /* END OF NEW CODE                                                    */
+    // /**********************************************************************/
 
     try {
       const apiUrl = 'http://localhost:7070/api/schedule/current/add-custom';
@@ -344,6 +472,101 @@ export const ScheduleProvider = ({ children }) => {
     }
    };
 
+  // /**********************************************************************/
+  // /* START OF NEW CODE                                                  */
+  // /**********************************************************************/
+  /**
+   * Calls the backend endpoint to undo the last action.
+   * Updates the schedule data on success.
+   */
+  const undoSchedule = async () => {
+    // Prevent concurrent operations
+    if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) {
+        console.log("ScheduleContext: Already processing, cannot undo now.");
+        return;
+    }
+    // Check user and active schedule
+    if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') {
+        setUndoRedoError("Please load a schedule to perform undo.");
+        return;
+    }
+
+    console.log("ScheduleContext: Attempting to undo last action...");
+    setIsUndoing(true);
+    setUndoRedoError(null); // Clear previous undo/redo errors
+    // Also clear other specific errors? Maybe keep general error for context?
+    setError(null); setControlError(null); setCustomEventError(null);
+
+    try {
+      const apiUrl = 'http://localhost:7070/api/schedule/current/undo';
+      const response = await fetch(apiUrl, { method: 'POST' });
+
+      if (!response.ok) {
+        let errorData;
+        try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
+        throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
+      }
+
+      // If successful, backend returns the updated schedule
+      const updatedSchedule = await parseJsonResponse(response);
+      console.log("ScheduleContext: Undo successful, updated schedule received:", updatedSchedule);
+      setScheduleData({ ...updatedSchedule, events: Array.isArray(updatedSchedule.events) ? updatedSchedule.events : [] });
+
+    } catch (err) {
+      console.error("ScheduleContext: Failed to undo:", err);
+      setUndoRedoError(err.message || "Could not perform undo."); // Set specific undo/redo error
+    } finally {
+      setIsUndoing(false);
+    }
+  };
+
+  /**
+   * Calls the backend endpoint to redo the last undone action.
+   * Updates the schedule data on success.
+   */
+  const redoSchedule = async () => {
+    // Prevent concurrent operations
+    if (isLoading || saveStatus.saving || isControlLoading || isAddingCustom || isUndoing || isRedoing) {
+        console.log("ScheduleContext: Already processing, cannot redo now.");
+        return;
+    }
+    // Check user and active schedule
+    if (!currentUser || !scheduleData || scheduleData.name === 'No Schedule Loaded') {
+        setUndoRedoError("Please load a schedule to perform redo.");
+        return;
+    }
+
+    console.log("ScheduleContext: Attempting to redo last action...");
+    setIsRedoing(true);
+    setUndoRedoError(null); // Clear previous undo/redo errors
+    setError(null); setControlError(null); setCustomEventError(null);
+
+    try {
+      const apiUrl = 'http://localhost:7070/api/schedule/current/redo';
+      const response = await fetch(apiUrl, { method: 'POST' });
+
+      if (!response.ok) {
+        let errorData;
+        try { errorData = await parseJsonResponse(response); } catch (parseError) { throw parseError; }
+        throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
+      }
+
+      // If successful, backend returns the updated schedule
+      const updatedSchedule = await parseJsonResponse(response);
+      console.log("ScheduleContext: Redo successful, updated schedule received:", updatedSchedule);
+      setScheduleData({ ...updatedSchedule, events: Array.isArray(updatedSchedule.events) ? updatedSchedule.events : [] });
+
+    } catch (err) {
+      console.error("ScheduleContext: Failed to redo:", err);
+      setUndoRedoError(err.message || "Could not perform redo."); // Set specific undo/redo error
+    } finally {
+      setIsRedoing(false);
+    }
+  };
+  // /**********************************************************************/
+  // /* END OF NEW CODE                                                    */
+  // /**********************************************************************/
+
 
   // Value provided by the context provider
   const value = {
@@ -355,6 +578,15 @@ export const ScheduleProvider = ({ children }) => {
     controlError,
     isAddingCustom,
     customEventError,
+    // /**********************************************************************/
+    // /* START OF NEW CODE                                                  */
+    // /**********************************************************************/
+    isUndoing,
+    isRedoing,
+    undoRedoError,
+    // /**********************************************************************/
+    // /* END OF NEW CODE                                                    */
+    // /**********************************************************************/
     fetchSchedule,
     addCourse,      // Updated addCourse (now includes section)
     removeCourse,   // Original removeCourse (by code)
@@ -362,7 +594,15 @@ export const ScheduleProvider = ({ children }) => {
     saveSchedule,
     loadSchedule,
     createNewSchedule,
-    addCustomEvent
+    addCustomEvent,
+    // /**********************************************************************/
+    // /* START OF NEW CODE                                                  */
+    // /**********************************************************************/
+    undoSchedule,
+    redoSchedule
+    // /**********************************************************************/
+    // /* END OF NEW CODE                                                    */
+    // /**********************************************************************/
   };
 
   return <ScheduleContext.Provider value={value}>{children}</ScheduleContext.Provider>;
