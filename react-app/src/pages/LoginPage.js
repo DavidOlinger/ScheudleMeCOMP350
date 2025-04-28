@@ -7,7 +7,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
 } from "firebase/auth";
-import { auth as firebaseAuth } from '../firebaseConfig'; // Import Firebase auth instance
+import { auth as firebaseAuth } from '../firebase'; // Import Firebase auth instance
 
 // Import MUI components (remain the same)
 import Avatar from '@mui/material/Avatar';

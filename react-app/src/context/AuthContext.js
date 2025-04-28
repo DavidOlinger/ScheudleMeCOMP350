@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 // ** NEW IMPORTS **
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth as firebaseAuth } from '../firebaseConfig'; // Import Firebase auth instance
+import { auth as firebaseAuth } from '../firebase'; // Import Firebase auth instance
 
 // Create the context
 const AuthContext = createContext(null);
