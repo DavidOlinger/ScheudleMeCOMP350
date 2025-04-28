@@ -1,53 +1,44 @@
 package newSite.api;
 
-// --- Ensure all necessary imports are present ---
+// --- Imports ---
 import io.javalin.Javalin;
 import io.javalin.http.Context;
-import newSite.core.Course;
-import newSite.core.Event;
-import newSite.core.Schedule;
-import newSite.core.ScheduleManager;
-import newSite.core.Search;
-import newSite.core.User;
-import newSite.core.TimeSlot; // Make sure TimeSlot is imported
-import newSite.ScheduleMeApp; // Make sure ErrorResponse (if used) is accessible
+import io.javalin.http.NotFoundResponse;
+import io.javalin.http.BadRequestResponse;
+import io.javalin.http.ConflictResponse;
+import io.javalin.http.InternalServerErrorResponse;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import com.google.firebase.auth.FirebaseToken;
+import com.google.gson.JsonSyntaxException;
+
+import newSite.core.*;
+import newSite.ScheduleMeApp;
+
+// **** ADDED Imports ****
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+// **** END ADDED Imports ****
+
+import java.util.*;
 import java.util.stream.Collectors;
-import java.util.Objects;
-import java.util.Iterator;
 // --- End Imports ---
-
 
 public class ScheduleController {
 
-    // --- Inner classes (AddCourseRequest, NameRequest, CreateScheduleResponse, CustomEventRequest, RemoveEventRequest) should be here ---
-    // Simple class to represent the JSON request body for adding a course
-    public static class AddCourseRequest {
-        public int courseCode; // Field name must match JSON key from frontend ("courseCode")
-        public String subject;
-        public char section;
-
-    }
-
-    // Simple class for create/rename requests expecting a name
-    public static class NameRequest {
-        public String name;
-    }
-
-    // New simple class to represent the combined response for creating a schedule
+    // --- Inner classes remain the same ---
+    public static class AddCourseRequest { public int courseCode; public String subject; public char section; }
+    public static class NameRequest { public String name; }
     public static class CreateScheduleResponse {
         public Schedule schedule;
-        public User user; // Include the updated user object
-
+        public User user;
         public CreateScheduleResponse(Schedule schedule, User user) {
             this.schedule = schedule;
-            // Create a safe copy of the user object for the response, excluding sensitive info like password hash
-            User publicUser = new User(user.name, ""); // Use constructor that only takes name/pass (pass empty pass)
+            User publicUser = new User(); // Use default constructor
+            publicUser.firebaseUid = user.firebaseUid;
+            publicUser.name = user.name;
+            publicUser.email = user.email;
             publicUser.idNumber = user.idNumber;
             publicUser.major = user.major;
             publicUser.year = user.year;
@@ -55,52 +46,20 @@ public class ScheduleController {
             this.user = publicUser;
         }
     }
-
-    /**
-     * Represents the JSON request body for adding a custom event.
-     * Fields must match the JSON keys sent from the frontend.
-     */
-    public static class CustomEventRequest {
-        public String name;
-        public String days; // e.g., "MWF"
-        public String startTime; // e.g., "14:00" or "14:00:00"
-        public String endTime; // e.g., "15:30" or "15:30:00"
-    }
-
-    /**
-     * Represents the JSON request body for removing a generic event.
-     * Requires enough information to uniquely identify the event.
-     */
-    public static class RemoveEventRequest {
-        public String name;
-        public String days;
-        // Send time as integer seconds from frontend for easier matching
-        public int startTimeSeconds;
-        public int endTimeSeconds;
-    }
+    public static class CustomEventRequest { public String name; public String days; public String startTime; public String endTime; }
+    public static class RemoveEventRequest { public String name; public String days; public int startTimeSeconds; public int endTimeSeconds; }
     // --- End Inner Classes ---
 
 
     public static void registerEndpoints(Javalin app, ScheduleManager scheduleManager) {
-        // --- Endpoints for the CURRENTLY ACTIVE schedule ---
+        // Register endpoints - ensure method names match handler definitions below
         app.get("/api/schedule/current", ctx -> getCurrentSchedule(ctx, scheduleManager));
-        // POST endpoint for adding a course (handler logic will be updated)
         app.post("/api/schedule/current/add", ctx -> addCourseToCurrentSchedule(ctx, scheduleManager));
-        app.post("/api/schedule/current/add-custom", ctx -> addCustomEventToCurrentSchedule(ctx, scheduleManager));
-        app.delete("/api/schedule/current/remove/{courseCode}", ctx -> removeCourseFromCurrentSchedule(ctx, scheduleManager));
-        app.post("/api/schedule/current/remove-event", ctx -> removeEventFromCurrentSchedule(ctx, scheduleManager));
-
-        // /**********************************************************************/
-        // /* START OF NEW CODE                                                  */
-        // /**********************************************************************/
-        // --- Undo/Redo Endpoints ---
+        app.post("/api/schedule/current/add-custom", ctx -> addCustomEventToCurrentSchedule(ctx, scheduleManager)); // Ensure this method exists
+        app.delete("/api/schedule/current/remove/{courseCode}", ctx -> removeCourseFromCurrentSchedule(ctx, scheduleManager)); // Ensure this method exists
+        app.post("/api/schedule/current/remove-event", ctx -> removeEventFromCurrentSchedule(ctx, scheduleManager)); // Ensure this method exists
         app.post("/api/schedule/current/undo", ctx -> undoLastAction(ctx, scheduleManager));
         app.post("/api/schedule/current/redo", ctx -> redoLastAction(ctx, scheduleManager));
-        // /**********************************************************************/
-        // /* END OF NEW CODE                                                    */
-        // /**********************************************************************/
-
-        // --- Endpoints for MANAGING saved schedules ---
         app.get("/api/schedules", ctx -> listSavedSchedules(ctx, scheduleManager));
         app.put("/api/schedules/load/{scheduleName}", ctx -> loadSchedule(ctx, scheduleManager));
         app.post("/api/schedules/save", ctx -> saveCurrentSchedule(ctx, scheduleManager));
@@ -108,614 +67,383 @@ public class ScheduleController {
         app.delete("/api/schedules/{scheduleName}", ctx -> deleteSchedule(ctx, scheduleManager));
     }
 
+    // --- Helper method to get User from Context ---
+    private static User loadUserFromContext(Context ctx) {
+        FirebaseToken decodedToken = ctx.attribute("firebase_token");
+        if (decodedToken == null) throw new InternalServerErrorResponse("Authentication token missing in context.");
+        String uid = decodedToken.getUid();
+        if (uid == null || uid.isBlank()) throw new InternalServerErrorResponse("Firebase UID missing from token.");
 
-    // --- Handler Methods ---
-    // Ensure all handler methods referenced above are defined in this class
-    // (getCurrentSchedule, addCourseToCurrentSchedule, addCustomEventToCurrentSchedule,
-    // removeCourseFromCurrentSchedule, removeEventFromCurrentSchedule, listSavedSchedules,
-    // loadSchedule, saveCurrentSchedule, createNewSchedule, deleteSchedule)
+        User user = User.loadUserByFirebaseUid(uid);
+        if (user == null) {
+            System.err.println("Controller Error: User profile data not found for UID: " + uid + " on path: " + ctx.path() + ". User profile must exist for schedule operations.");
+            throw new NotFoundResponse("User profile data not found. Cannot perform schedule operation.");
+        }
+        return user;
+    }
 
-    // Example handler (ensure all others exist)
+    // ========================================================================
+    // === Handlers operating on the STATIC current schedule (Unsafe)       ===
+    // ========================================================================
+
+    /** WARNING: Returns globally static schedule. */
     private static void getCurrentSchedule(Context ctx, ScheduleManager scheduleManager) {
-        //
-        if (scheduleManager.user == null) {
-            ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "No user session found"));
-            return;
-        }
-        Schedule current = ScheduleManager.getCurrentSchedule();
-        if (current != null) {
-            System.out.println("getCurrentSchedule: Returning active schedule '" + current.name + "' for user " + scheduleManager.user.name);
-            ctx.json(current);
+        User currentUser = loadUserFromContext(ctx);
+        Schedule staticCurrent = ScheduleManager.getCurrentSchedule();
+        if (staticCurrent != null) {
+            System.out.println("[User UID: " + currentUser.firebaseUid + "] WARNING: Returning STATIC current schedule: '" + staticCurrent.name + "'");
+            ctx.json(staticCurrent);
         } else {
-            System.out.println("getCurrentSchedule: No active schedule loaded for user " + scheduleManager.user.name);
-            ctx.status(404).json(new ScheduleMeApp.ErrorResponse("Not Found", "No active schedule loaded")); // Keep 404 specific
+            throw new NotFoundResponse("No schedule currently loaded (globally)");
         }
     }
 
-    /**
-     * Handles POST requests to add a specific course section to the current schedule.
-     * Uses subject, courseCode, and section from the request body
-     * to uniquely identify the course.
-     *
-     * @param ctx             The Javalin context object.
-     * @param scheduleManager The shared schedule manager instance.
-     */
+    /** WARNING: Adds course to globally static schedule. */
     private static void addCourseToCurrentSchedule(Context ctx, ScheduleManager scheduleManager) {
-        System.out.println(">>> ENTERED addCourseToCurrentSchedule handler (v3 - with section)");
-
-        // Check user and active schedule
-        if (scheduleManager.user == null) { /* ... (error handling) ... */
-            System.out.println("addCourseToCurrentSchedule: Denied - User not logged in");
-            ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "User not logged in"));
-            return;
-        }
-        if (ScheduleManager.getCurrentSchedule() == null) { /* ... (error handling) ... */
-            System.out.println("addCourseToCurrentSchedule: Denied - No active schedule");
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "No active schedule to add course to"));
-            return;
-        }
-        // Check if the course database is available
-        if (scheduleManager.currentSearch == null || scheduleManager.currentSearch.courseDatabase == null) { /* ... (error handling) ... */
-            System.err.println("FATAL ERROR in addCourseToCurrentSchedule: ScheduleManager's Search or Course Database is null!");
-            ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Configuration Error", "Course database not available to ScheduleManager"));
-            return;
-        }
+        User currentUser = loadUserFromContext(ctx);
+        System.out.println("[User UID: " + currentUser.firebaseUid + "] WARNING: Adding course to STATIC current schedule.");
+        if (ScheduleManager.currentSchedule == null) { throw new BadRequestResponse("No active schedule (globally)"); }
+        if (scheduleManager.currentSearch == null || scheduleManager.currentSearch.courseDatabase == null) { throw new InternalServerErrorResponse("Course database not available"); }
 
         try {
-            // Parse the request body using the updated AddCourseRequest class
             AddCourseRequest request = ctx.bodyAsClass(AddCourseRequest.class);
+            if (request.subject == null || request.courseCode <= 0 || !Character.isLetterOrDigit(request.section)) { throw new BadRequestResponse("Missing/invalid fields"); }
+            String subject = request.subject.trim().toUpperCase();
+            char section = Character.toUpperCase(request.section);
 
-            // --- Validate required fields ---
-            if (request.subject == null || request.subject.trim().isEmpty() ||
-                    request.courseCode <= 0 ||
-                    // Basic validation for section (assuming it's a letter or digit)
-                    !Character.isLetterOrDigit(request.section))
-            {
-                ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Missing or invalid required fields (subject, courseCode, section)"));
-                return;
-            }
-
-            String subjectToAdd = request.subject.trim().toUpperCase(); // Normalize subject
-            int courseCodeToAdd = request.courseCode;
-            char sectionToAdd = Character.toUpperCase(request.section); // Normalize section
-
-            System.out.println("addCourseToCurrentSchedule: Received request to add course: Subject=" + subjectToAdd + ", Code=" + courseCodeToAdd + ", Section=" + sectionToAdd);
-
-            // --- Find the specific course in the database ---
-            // Use stream().filter() to match on subject, courseCode, AND section
             Course courseToAdd = scheduleManager.currentSearch.courseDatabase.stream()
-                    .filter(c -> c != null &&
-                            subjectToAdd.equals(c.subject) && // Match subject
-                            c.courseCode == courseCodeToAdd && // Match course code
-                            sectionToAdd == c.section // Match section
-                    )
-                    .findFirst() // Find the first (and supposedly only) match
-                    // Throw exception if no matching course section is found
-                    .orElseThrow(() -> new NoSuchElementException(
-                            "Course with Subject=" + subjectToAdd + ", Code=" + courseCodeToAdd + ", Section=" + sectionToAdd + " not found in database"
-                    ));
+                    .filter(c -> c != null && subject.equals(c.subject) && c.courseCode == request.courseCode && section == c.section)
+                    .findFirst()
+                    .orElseThrow(() -> new NotFoundResponse("Course section not found"));
 
-            System.out.println("addCourseToCurrentSchedule: Found specific course section: " + courseToAdd.name + " [" + courseToAdd.section + "]. Attempting to add...");
+            boolean conflict = scheduleManager.addEvent(courseToAdd); // Modifies STATIC schedule
 
-            // --- Add the found course to the schedule using ScheduleManager ---
-            boolean conflict = scheduleManager.addEvent(courseToAdd); // addEvent handles conflict checking and history
+            if (conflict) { throw new ConflictResponse("Course conflicts (static schedule)."); }
+            else { ctx.status(200).json(ScheduleManager.getCurrentSchedule()); }
 
-            if (conflict) {
-                // Conflict detected by scheduleManager.addEvent()
-                System.out.println("addCourseToCurrentSchedule: Conflict detected for course: " + subjectToAdd + " " + courseCodeToAdd + " [" + sectionToAdd + "]");
-                ctx.status(409).json(new ScheduleMeApp.ErrorResponse("Conflict", "Course " + subjectToAdd + " " + courseCodeToAdd + " [" + sectionToAdd + "] conflicts with an existing schedule event."));
-            } else {
-                // Course added successfully
-                System.out.println("addCourseToCurrentSchedule: Course " + subjectToAdd + " " + courseCodeToAdd + " [" + sectionToAdd + "] added successfully.");
-                // Return the updated schedule
-                ctx.status(200).json(ScheduleManager.getCurrentSchedule());
-            }
-
-        } catch (NoSuchElementException e) {
-            // Handle case where the specific course section wasn't found
-            System.err.println("addCourseToCurrentSchedule error: " + e.getMessage());
-            ctx.status(404).json(new ScheduleMeApp.ErrorResponse("Not Found", e.getMessage()));
-        } catch (com.google.gson.JsonSyntaxException | io.javalin.http.BadRequestResponse e) {
-            // Handle errors parsing the request body
-            System.err.println("addCourseToCurrentSchedule error - Invalid JSON or request body: " + e.getMessage());
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Invalid request body format. Expected JSON with subject, courseCode, and section."));
-        } catch (Exception e) {
-            // Catch any other unexpected errors
-            System.err.println("addCourseToCurrentSchedule unexpected error: " + e.getMessage());
-            e.printStackTrace();
-            ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to add course due to an unexpected error."));
+        } catch (JsonSyntaxException e) { throw new BadRequestResponse("Invalid JSON format."); }
+        catch (BadRequestResponse | ConflictResponse | NotFoundResponse e) { throw e; }
+        catch (Exception e) {
+            System.err.println("[User UID: " + currentUser.firebaseUid + "] Add course (static) error: " + e.getMessage()); e.printStackTrace();
+            throw new InternalServerErrorResponse("Unexpected error adding course.");
         }
     }
 
+    // **** ENSURED Method Definition Exists ****
+    /** WARNING: Adds custom event to globally static schedule. */
     private static void addCustomEventToCurrentSchedule(Context ctx, ScheduleManager scheduleManager) {
-        // ... (implementation from previous step) ...
-        System.out.println(">>> ENTERED addCustomEventToCurrentSchedule handler");
+        User currentUser = loadUserFromContext(ctx);
+        System.out.println("[User UID: " + currentUser.firebaseUid + "] WARNING: Adding custom event to STATIC current schedule.");
 
-        // Check if user is logged in
-        if (scheduleManager.user == null) {
-            System.out.println("addCustomEventToCurrentSchedule: Denied - User not logged in");
-            ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "User not logged in"));
-            return;
-        }
-        // Check if a schedule is active
-        if (ScheduleManager.getCurrentSchedule() == null) {
-            System.out.println("addCustomEventToCurrentSchedule: Denied - No active schedule");
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "No active schedule to add event to"));
-            return;
-        }
+        if (ScheduleManager.currentSchedule == null) { throw new BadRequestResponse("No active schedule (globally)"); }
 
         try {
-            // Parse the request body into our CustomEventRequest object
             CustomEventRequest request = ctx.bodyAsClass(CustomEventRequest.class);
-
-            // --- Input Validation ---
-            if (request.name == null || request.name.trim().isEmpty() ||
-                    request.days == null || request.days.trim().isEmpty() ||
-                    request.startTime == null || request.startTime.isEmpty() ||
-                    request.endTime == null || request.endTime.isEmpty()) {
-                ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Missing required fields (name, days, startTime, endTime)"));
-                return;
-            }
-
+            if (request.name == null || request.name.trim().isEmpty() || request.days == null || request.startTime == null || request.endTime == null) { throw new BadRequestResponse("Missing fields"); }
             String eventName = request.name.trim();
-            // Clean days string (allow only MTWRF) and ensure it's not empty after cleaning
             String eventDays = request.days.trim().replaceAll("[^MTWRF]", "");
-            if (eventDays.isEmpty()) {
-                ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Invalid days provided. Use M, T, W, R, F."));
-                return;
-            }
-
-            System.out.println("addCustomEventToCurrentSchedule: Received request for event: " + eventName);
-
-            // --- Create TimeSlot ---
-            // Append seconds ":00" if the frontend sends "HH:MM"
-            String startWithSeconds = request.startTime.contains(":") && request.startTime.length() == 5 ? request.startTime + ":00" : request.startTime;
-            String endWithSeconds = request.endTime.contains(":") && request.endTime.length() == 5 ? request.endTime + ":00" : request.endTime;
+            if (eventDays.isEmpty()) { throw new BadRequestResponse("Invalid days"); }
 
             TimeSlot timeSlot;
             try {
-                // Basic format validation before creating TimeSlot
-                if (!startWithSeconds.matches("\\d{2}:\\d{2}:\\d{2}") || !endWithSeconds.matches("\\d{2}:\\d{2}:\\d{2}")) {
-                    throw new IllegalArgumentException("Invalid time format. Expected HH:MM or HH:MM:SS.");
-                }
-                timeSlot = new TimeSlot(startWithSeconds, endWithSeconds); // TimeSlot constructor parses HH:MM:SS
-                // Check if start time is actually before end time
-                if (timeSlot.startTime >= timeSlot.endTime) {
-                    throw new IllegalArgumentException("Start time must be before end time.");
-                }
-            } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException | NullPointerException timeEx) {
-                // Catch errors from TimeSlot constructor or validation
-                System.err.println("addCustomEventToCurrentSchedule error - Invalid time: " + timeEx.getMessage());
-                ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Invalid time data: " + timeEx.getMessage()));
-                return;
-            }
+                String startWithSeconds = request.startTime.contains(":") && request.startTime.length() == 5 ? request.startTime + ":00" : request.startTime;
+                String endWithSeconds = request.endTime.contains(":") && request.endTime.length() == 5 ? request.endTime + ":00" : request.endTime;
+                if (!startWithSeconds.matches("\\d{2}:\\d{2}:\\d{2}") || !endWithSeconds.matches("\\d{2}:\\d{2}:\\d{2}")) { throw new IllegalArgumentException("Invalid time format."); }
+                timeSlot = new TimeSlot(startWithSeconds, endWithSeconds);
+                if (timeSlot.startTime >= timeSlot.endTime) { throw new IllegalArgumentException("Start time must be before end time."); }
+            } catch (Exception timeEx) { throw new BadRequestResponse("Invalid time data: " + timeEx.getMessage()); }
 
-
-            // --- Create Event object ---
             Event customEvent = new Event(eventName, eventDays, timeSlot);
 
-            System.out.println("addCustomEventToCurrentSchedule: Created Event: " + customEvent + ". Attempting to add...");
+            boolean conflict = scheduleManager.addEvent(customEvent); // Modifies STATIC schedule
 
-            // --- Add event using ScheduleManager (checks for conflicts) ---
-            boolean conflict = scheduleManager.addEvent(customEvent); // Use the existing addEvent logic
+            if (conflict) { throw new ConflictResponse("Event conflicts (static schedule)."); }
+            else { ctx.status(200).json(ScheduleManager.getCurrentSchedule()); }
 
-            if (conflict) {
-                // If addEvent returns true, it means there was a conflict
-                System.out.println("addCustomEventToCurrentSchedule: Conflict detected for event: " + eventName);
-                ctx.status(409).json(new ScheduleMeApp.ErrorResponse("Conflict", "Event '" + eventName + "' conflicts with an existing schedule event."));
-            } else {
-                // If addEvent returns false, it was added successfully
-                System.out.println("addCustomEventToCurrentSchedule: Event '" + eventName + "' added successfully.");
-                // Return the updated schedule as confirmation
-                ctx.status(200).json(ScheduleManager.getCurrentSchedule());
-            }
-
-        } catch (com.google.gson.JsonSyntaxException | io.javalin.http.BadRequestResponse e) {
-            // Handle errors during JSON parsing or if request body is malformed
-            System.err.println("addCustomEventToCurrentSchedule error - Invalid JSON or request body: " + e.getMessage());
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Invalid request body format. Expected JSON with name, days, startTime, endTime."));
-        } catch (Exception e) {
-            // Catch any other unexpected errors during processing
-            System.err.println("addCustomEventToCurrentSchedule unexpected error: " + e.getMessage());
-            e.printStackTrace();
-            ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to add custom event due to an unexpected error."));
+        } catch (JsonSyntaxException e) { throw new BadRequestResponse("Invalid JSON format."); }
+        catch (BadRequestResponse | ConflictResponse e) { throw e; }
+        catch (Exception e) {
+            System.err.println("[User UID: " + currentUser.firebaseUid + "] Add custom event (static) error: " + e.getMessage()); e.printStackTrace();
+            throw new InternalServerErrorResponse("Unexpected error adding custom event.");
         }
     }
 
+    // **** ENSURED Method Definition Exists ****
+    /** WARNING: Removes course from globally static schedule. */
     private static void removeCourseFromCurrentSchedule(Context ctx, ScheduleManager scheduleManager) {
-        // ... (implementation) ...
-        if (scheduleManager.user == null) {
-            ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "User not logged in"));
-            return;
-        }
-        if (ScheduleManager.getCurrentSchedule() == null) {
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "No active schedule to remove course from"));
-            return;
-        }
+        User currentUser = loadUserFromContext(ctx);
+        System.out.println("[User UID: " + currentUser.firebaseUid + "] WARNING: Removing course from STATIC current schedule.");
+
+        Schedule staticCurrent = ScheduleManager.currentSchedule;
+        if (staticCurrent == null || staticCurrent.events == null) { throw new BadRequestResponse("No active schedule or empty schedule (globally)"); }
 
         try {
             int courseCodeToRemove = Integer.parseInt(ctx.pathParam("courseCode"));
-            System.out.println("Received request to remove course code: " + courseCodeToRemove);
-            Schedule currentSchedule = ScheduleManager.getCurrentSchedule();
+            Event eventToRemove = staticCurrent.events.stream()
+                    .filter(e -> e instanceof Course && ((Course) e).courseCode == courseCodeToRemove)
+                    .findFirst()
+                    .orElseThrow(() -> new NotFoundResponse("Course code " + courseCodeToRemove + " not found (static schedule)"));
 
-            Event eventToRemove = null;
-            if (currentSchedule.events != null) {
-                for (Event event : currentSchedule.events) {
-                    if (event instanceof Course && ((Course) event).courseCode == courseCodeToRemove) {
-                        eventToRemove = event;
-                        break;
-                    }
-                }
-            }
+            scheduleManager.remEvent(eventToRemove); // Modifies STATIC schedule
+            System.out.println("Course removed successfully from static schedule.");
+            ctx.status(200).json(ScheduleManager.getCurrentSchedule());
 
-            if (eventToRemove == null) {
-                System.out.println("Course code " + courseCodeToRemove + " not found in current schedule.");
-                ctx.status(404).json(new ScheduleMeApp.ErrorResponse("Not Found", "Course with code " + courseCodeToRemove + " not found in current schedule"));
-                return;
-            }
-
-            System.out.println("Found course: " + eventToRemove.name + ". Attempting to remove from schedule...");
-            scheduleManager.remEvent(eventToRemove);
-            System.out.println("Course code " + courseCodeToRemove + " removed successfully.");
-            ctx.status(200).json(ScheduleManager.getCurrentSchedule()); // Return updated schedule
-
-        } catch (NumberFormatException e) {
-            System.err.println("Remove course error - Invalid course code format: " + ctx.pathParam("courseCode"));
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Invalid course code format in URL"));
-        } catch (Exception e) {
-            System.err.println("Remove course unexpected error: " + e.getMessage());
-            e.printStackTrace();
-            ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to remove course due to an unexpected error."));
+        } catch (NumberFormatException e) { throw new BadRequestResponse("Invalid course code format"); }
+        catch (NotFoundResponse e) { throw e; }
+        catch (Exception e) {
+            System.err.println("[User UID: " + currentUser.firebaseUid + "] Remove course (static) error: " + e.getMessage()); e.printStackTrace();
+            throw new InternalServerErrorResponse("Unexpected error removing course.");
         }
     }
 
+    // **** ENSURED Method Definition Exists ****
+    /** WARNING: Removes event from globally static schedule. */
     private static void removeEventFromCurrentSchedule(Context ctx, ScheduleManager scheduleManager) {
-        // ... (implementation from previous step) ...
-        System.out.println(">>> ENTERED removeEventFromCurrentSchedule handler");
+        User currentUser = loadUserFromContext(ctx);
+        System.out.println("[User UID: " + currentUser.firebaseUid + "] WARNING: Removing event from STATIC current schedule.");
 
-        // Check user and active schedule
-        if (scheduleManager.user == null) {
-            ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "User not logged in"));
-            return;
-        }
-        Schedule currentSchedule = ScheduleManager.getCurrentSchedule();
-        if (currentSchedule == null || currentSchedule.events == null) {
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "No active schedule to remove event from"));
-            return;
-        }
+        Schedule staticCurrent = ScheduleManager.currentSchedule;
+        if (staticCurrent == null || staticCurrent.events == null) { throw new BadRequestResponse("No active schedule or empty schedule (globally)"); }
 
         try {
-            // Parse request body
             RemoveEventRequest request = ctx.bodyAsClass(RemoveEventRequest.class);
-
-            // Basic validation of request data
-            if (request.name == null || request.name.trim().isEmpty() ||
-                    request.days == null ) { // Allow empty days string? Maybe not. Add validation if needed.
-                // Time validation (startTimeSeconds >= 0 and endTimeSeconds > startTimeSeconds)
-                ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Missing required fields (name, days, startTimeSeconds, endTimeSeconds)"));
-                return;
-            }
-            if (request.startTimeSeconds < 0 || request.endTimeSeconds <= request.startTimeSeconds) {
-                ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Invalid time range provided (startTimeSeconds, endTimeSeconds)"));
-                return;
-            }
-
-
-            System.out.println("removeEventFromCurrentSchedule: Received request to remove event: Name='" + request.name + "', Days='" + request.days + "', StartSec=" + request.startTimeSeconds + ", EndSec=" + request.endTimeSeconds);
+            if (request.name == null || request.name.trim().isEmpty() || request.days == null || request.startTimeSeconds < 0 || request.endTimeSeconds <= request.startTimeSeconds) { throw new BadRequestResponse("Missing/invalid fields"); }
 
             Event eventToRemove = null;
-            // Iterate safely using an Iterator to allow removal during iteration
-            Iterator<Event> iterator = currentSchedule.events.iterator();
+            Iterator<Event> iterator = staticCurrent.events.iterator(); // Iterate static schedule
             while (iterator.hasNext()) {
                 Event event = iterator.next();
-                // Check for match based on name, days, and time slot (using seconds)
-                if (event != null && event.time != null &&
-                        Objects.equals(event.name, request.name.trim()) && // Use Objects.equals for null safety
-                        Objects.equals(event.days, request.days) &&
-                        event.time.startTime == request.startTimeSeconds &&
-                        event.time.endTime == request.endTimeSeconds)
-                {
-                    eventToRemove = event; // Found the event
-                    break; // Exit loop once found
+                if (event != null && event.time != null && Objects.equals(event.name, request.name.trim()) && Objects.equals(event.days, request.days) && event.time.startTime == request.startTimeSeconds && event.time.endTime == request.endTimeSeconds) {
+                    eventToRemove = event; break;
                 }
             }
 
+            if (eventToRemove == null) { throw new NotFoundResponse("Specified event not found (static schedule)"); }
 
-            if (eventToRemove != null) {
-                System.out.println("removeEventFromCurrentSchedule: Found matching event. Attempting removal...");
-                // Use ScheduleManager's remove method (which handles undo/redo state)
-                scheduleManager.remEvent(eventToRemove);
-                System.out.println("removeEventFromCurrentSchedule: Event removed successfully.");
-                // Return the updated schedule
-                ctx.status(200).json(ScheduleManager.getCurrentSchedule());
-            } else {
-                System.out.println("removeEventFromCurrentSchedule: No matching event found in the current schedule.");
-                ctx.status(404).json(new ScheduleMeApp.ErrorResponse("Not Found", "Specified event not found in the current schedule"));
-            }
+            scheduleManager.remEvent(eventToRemove); // Modifies STATIC schedule
+            System.out.println("Event removed successfully from static schedule.");
+            ctx.status(200).json(ScheduleManager.getCurrentSchedule());
 
-        } catch (com.google.gson.JsonSyntaxException | io.javalin.http.BadRequestResponse e) {
-            System.err.println("removeEventFromCurrentSchedule error - Invalid JSON or request body: " + e.getMessage());
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Invalid request body format."));
-        } catch (Exception e) {
-            System.err.println("removeEventFromCurrentSchedule unexpected error: " + e.getMessage());
-            e.printStackTrace();
-            ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to remove event due to an unexpected error."));
+        } catch (JsonSyntaxException e) { throw new BadRequestResponse("Invalid JSON format."); }
+        catch (BadRequestResponse | NotFoundResponse e) { throw e; }
+        catch (Exception e) {
+            System.err.println("[User UID: " + currentUser.firebaseUid + "] Remove event (static) error: " + e.getMessage()); e.printStackTrace();
+            throw new InternalServerErrorResponse("Unexpected error removing event.");
         }
     }
 
-    private static void listSavedSchedules(Context ctx, ScheduleManager scheduleManager) {
-        // ... (implementation) ...
-        if (scheduleManager.user == null) {
-            ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "No user session found"));
-            return;
+    /** WARNING: Performs UNDO on globally static schedule. Unsafe. */
+    private static void undoLastAction(Context ctx, ScheduleManager scheduleManager) {
+        User currentUser = loadUserFromContext(ctx);
+        System.out.println("[User UID: " + currentUser.firebaseUid + "] WARNING: Performing UNDO on STATIC current schedule.");
+        if (ScheduleManager.currentSchedule == null) { throw new BadRequestResponse("No active schedule (globally) to undo"); }
+        try {
+            boolean success = scheduleManager.undo();
+            if (success) { ctx.status(200).json(ScheduleManager.getCurrentSchedule()); }
+            else { throw new BadRequestResponse("Nothing to undo"); }
+        } catch (BadRequestResponse e) { throw e; }
+        catch (Exception e) {
+            System.err.println("[User UID: " + currentUser.firebaseUid + "] Undo error: " + e.getMessage()); e.printStackTrace();
+            throw new InternalServerErrorResponse("Undo failed.");
         }
-        System.out.println("Request received to list schedules for user: " + scheduleManager.user.name);
+    }
 
-        if (scheduleManager.user.mySchedules != null) {
-            // Ensure paths are valid before extracting names
-            List<String> scheduleNames = scheduleManager.user.mySchedules.stream()
-                    .filter(filePath -> filePath != null && filePath.contains("/") && filePath.contains("."))
-                    .map(filePath -> {
-                        try {
-                            return filePath.substring(filePath.lastIndexOf('/') + 1, filePath.lastIndexOf('.'));
-                        } catch (StringIndexOutOfBoundsException e) {
-                            System.err.println("Error parsing schedule file path: " + filePath);
-                            return null; // Skip invalid paths
-                        }
+    /** WARNING: Performs REDO on globally static schedule. Unsafe. */
+    private static void redoLastAction(Context ctx, ScheduleManager scheduleManager) {
+        User currentUser = loadUserFromContext(ctx);
+        System.out.println("[User UID: " + currentUser.firebaseUid + "] WARNING: Performing REDO on STATIC current schedule.");
+        if (ScheduleManager.currentSchedule == null) { throw new BadRequestResponse("No active schedule (globally) to redo"); }
+        try {
+            boolean success = scheduleManager.redo();
+            if (success) { ctx.status(200).json(ScheduleManager.getCurrentSchedule()); }
+            else { throw new BadRequestResponse("Nothing to redo"); }
+        } catch (BadRequestResponse e) { throw e; }
+        catch (Exception e) {
+            System.err.println("[User UID: " + currentUser.firebaseUid + "] Redo error: " + e.getMessage()); e.printStackTrace();
+            throw new InternalServerErrorResponse("Redo failed.");
+        }
+    }
+
+
+    // ========================================================================
+    // === Handlers for Managing Specific Schedules (More Reliable)         ===
+    // ========================================================================
+
+    /** Lists saved schedule names for the authenticated user. */
+    private static void listSavedSchedules(Context ctx, ScheduleManager scheduleManager) {
+        User currentUser = loadUserFromContext(ctx);
+        System.out.println("[User UID: " + currentUser.firebaseUid + "] Listing saved schedules.");
+        if (currentUser.mySchedules != null) {
+            List<String> scheduleNames = currentUser.mySchedules.stream()
+                    // Use Path object now that it's imported
+                    .map(relPath -> { try {
+                        // **** FIXED: Use Path/Paths ****
+                        Path p = Paths.get(relPath);
+                        String filename = p.getFileName().toString();
+                        return filename.substring(0, filename.lastIndexOf('.'));
+                    } catch (Exception e) {
+                        System.err.println("Error parsing schedule path: " + relPath + " - " + e.getMessage());
+                        return null; // Skip invalid paths
+                    }
                     })
-                    .filter(name -> name != null && !name.isEmpty()) // Filter out nulls/empty names
-                    .collect(Collectors.toList());
-            System.out.println("Returning schedule names: " + scheduleNames);
+                    .filter(Objects::nonNull).collect(Collectors.toList());
             ctx.json(scheduleNames);
         } else {
-            System.out.println("User has no saved schedules list (mySchedules is null).");
-            ctx.json(new ArrayList<String>()); // Return empty list
+            ctx.json(new ArrayList<String>());
         }
     }
 
+    /** WARNING: Loads schedule AND sets the static current schedule. */
     private static void loadSchedule(Context ctx, ScheduleManager scheduleManager) {
-        // ... (implementation) ...
-        if (scheduleManager.user == null) {
-            ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "No user session found"));
-            return;
-        }
+        User currentUser = loadUserFromContext(ctx);
         String scheduleName = ctx.pathParam("scheduleName");
-        if (scheduleName == null || scheduleName.trim().isEmpty()) {
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Schedule name required in URL path"));
-            return;
-        }
-        System.out.println("Received request to load schedule: " + scheduleName + " for user " + scheduleManager.user.name);
+        if (scheduleName == null || scheduleName.trim().isEmpty()) { throw new BadRequestResponse("Schedule name required"); }
+        System.out.println("[User UID: " + currentUser.firebaseUid + "] Loading schedule: '" + scheduleName + "'. WARNING: Will set STATIC current schedule.");
 
+        User originalManagerUser = scheduleManager.user;
         try {
+            scheduleManager.user = currentUser; // TEMPORARY, UNSAFE
             Schedule loadedSchedule = scheduleManager.loadSchedule(scheduleName);
-
             if (loadedSchedule != null) {
                 scheduleManager.initializeUndoRedoAfterLoad();
-                System.out.println("Successfully loaded schedule: " + scheduleName);
                 ctx.status(200).json(loadedSchedule);
             } else {
-                System.err.println("Failed to load schedule (loadSchedule returned null): " + scheduleName);
-                ctx.status(404).json(new ScheduleMeApp.ErrorResponse("Not Found", "Schedule '" + scheduleName + "' not found or failed to load"));
+                throw new NotFoundResponse("Schedule '" + scheduleName + "' not found or failed to load.");
             }
-        } catch (Exception e) {
-            System.err.println("Unexpected error during loadSchedule for '" + scheduleName + "': " + e.getMessage());
-            e.printStackTrace();
-            ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to load schedule due to an unexpected error."));
+        } catch (NotFoundResponse | BadRequestResponse e) { throw e; }
+        catch (Exception e) {
+            System.err.println("[User UID: " + currentUser.firebaseUid + "] Load schedule error: " + e.getMessage()); e.printStackTrace();
+            throw new InternalServerErrorResponse("Unexpected error loading schedule.");
+        } finally {
+            scheduleManager.user = originalManagerUser; // Restore
         }
     }
 
+
+    /** WARNING: Saves the globally static current schedule. */
     private static void saveCurrentSchedule(Context ctx, ScheduleManager scheduleManager) {
-        // ... (implementation) ...
-        if (scheduleManager.user == null) {
-            ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "User not logged in"));
-            return;
-        }
-        if (ScheduleManager.getCurrentSchedule() == null) {
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "No active schedule to save"));
-            return;
-        }
-        Schedule currentSchedule = ScheduleManager.getCurrentSchedule();
-        System.out.println("Received request to save schedule: " + currentSchedule.name + " for user " + scheduleManager.user.name);
-
+        User currentUser = loadUserFromContext(ctx);
+        Schedule staticCurrentSchedule = ScheduleManager.getCurrentSchedule();
+        if (staticCurrentSchedule == null) { throw new BadRequestResponse("No active schedule (globally) to save"); }
+        System.out.println("[User UID: " + currentUser.firebaseUid + "] WARNING: Saving STATIC schedule named '" + staticCurrentSchedule.name + "'.");
         try {
-            // User.saveSchedule now also saves the user data file to persist mySchedules list
-            scheduleManager.user.saveSchedule(currentSchedule);
-            System.out.println("Schedule '" + currentSchedule.name + "' saved successfully via API.");
-            ctx.status(200).json(Map.of("message", "Schedule '" + currentSchedule.name + "' saved successfully"));
-        } catch (Exception e) {
-            System.err.println("Save schedule error: " + e.getMessage());
-            e.printStackTrace();
-            ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to save schedule"));
+            currentUser.saveSchedule(staticCurrentSchedule);
+            ctx.status(200).json(Map.of("message", "Schedule '" + staticCurrentSchedule.name + "' saved successfully"));
+        } catch (Exception e) { // Catch specific IOExceptions if User.saveSchedule declares them
+            System.err.println("[User UID: " + currentUser.firebaseUid + "] Save static schedule error: " + e.getMessage()); e.printStackTrace();
+            // **** FIXED: Check if e has getMessage() ****
+            throw new InternalServerErrorResponse("Failed to save schedule: " + (e.getMessage() != null ? e.getMessage() : "Unknown error"));
         }
     }
-
+    /**
+     * Creates a new schedule for the authenticated user (using UID).
+     * WARNING: This action sets the globally static ScheduleManager.currentSchedule,
+     * affecting all users. It also requires temporarily setting the instance user.
+     */
     private static void createNewSchedule(Context ctx, ScheduleManager scheduleManager) {
-        // ... (implementation) ...
-        if (scheduleManager.user == null) {
-            ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "No user session found"));
-            return;
-        }
+        User currentUser = loadUserFromContext(ctx); // Load user by UID
 
         NameRequest request;
-        try {
-            request = ctx.bodyAsClass(NameRequest.class);
-        } catch (Exception e) {
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Invalid request body. Expected JSON with 'name'."));
-            return;
-        }
+        try { request = ctx.bodyAsClass(NameRequest.class); }
+        catch (Exception e) { throw new BadRequestResponse("Invalid request body. Expected JSON with 'name'."); }
 
         String scheduleName = request.name;
-
-        if (scheduleName == null || scheduleName.trim().isEmpty()) {
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Schedule name is required in request body"));
-            return;
-        }
+        if (scheduleName == null || scheduleName.trim().isEmpty()) { throw new BadRequestResponse("Schedule name required"); }
         String trimmedName = scheduleName.trim();
-        System.out.println("Received request to create new schedule: " + trimmedName + " for user " + scheduleManager.user.name);
+        System.out.println("[User UID: " + currentUser.firebaseUid + "] Creating new schedule: '" + trimmedName + "'. WARNING: Will set STATIC current schedule.");
 
-        // Check for existing schedule name conflict
-        String potentialFilePath = "users/" + scheduleManager.user.name + "/schedules/" + trimmedName + ".json";
-        if (scheduleManager.user.mySchedules == null) {
-            scheduleManager.user.mySchedules = new ArrayList<>(); // Initialize if null
-        }
-        if (scheduleManager.user.mySchedules.contains(potentialFilePath)) {
-            System.out.println("Schedule name '" + trimmedName + "' already exists.");
-            ctx.status(409).json(new ScheduleMeApp.ErrorResponse("Conflict", "A schedule with this name already exists."));
-            return;
-        }
-
-
-        try {
-            // newSchedule creates, saves, adds to user list, and sets as current
-            scheduleManager.newSchedule(trimmedName);
-            scheduleManager.initializeUndoRedoAfterLoad(); // Initialize history for the new schedule
-
-            Schedule newSchedule = ScheduleManager.getCurrentSchedule();
-
-            if (newSchedule != null && newSchedule.name.equals(trimmedName)) {
-                System.out.println("Successfully created and activated new schedule: " + trimmedName);
-                // Create the combined response object containing the new schedule
-                // and the updated user object (which includes the new schedule path)
-                CreateScheduleResponse responsePayload = new CreateScheduleResponse(newSchedule, scheduleManager.user);
-                ctx.status(201).json(responsePayload); // Send combined data
-            } else {
-                System.err.println("Error after creating new schedule: currentSchedule is not the new one or is null.");
-                ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to activate new schedule after creation attempt."));
+        try { // Wrap existence check and creation
+            // Check for conflict using user's method that now throws NoSuchElementException if NOT found
+            try {
+                currentUser.loadScheduleFile(trimmedName);
+                // If we get here, it exists
+                throw new ConflictResponse("A schedule with this name already exists.");
+            } catch (NoSuchElementException scheduleNotFound) {
+                // Expected path: schedule doesn't exist, proceed.
+            } catch (IOException | JsonSyntaxException | IllegalStateException checkError) {
+                // Handle other errors during the check
+                System.err.println("[User UID: " + currentUser.firebaseUid + "] Error checking schedule existence: " + checkError.getMessage());
+                throw new InternalServerErrorResponse("Error checking existing schedule.");
             }
-        } catch (Exception e) {
-            System.err.println("Unexpected error during createNewSchedule for '" + trimmedName + "': " + e.getMessage());
-            e.printStackTrace();
-            ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to create new schedule due to an unexpected error."));
+
+            // If check passes (or throws correctly handled exception), proceed with creation
+            User originalManagerUser = scheduleManager.user;
+            try {
+                scheduleManager.user = currentUser; // TEMPORARY, UNSAFE for concurrency
+                scheduleManager.newSchedule(trimmedName); // Calls original method, sets static currentSchedule
+                scheduleManager.initializeUndoRedoAfterLoad(); // Operates on static schedule
+
+                Schedule newStaticSchedule = ScheduleManager.getCurrentSchedule();
+
+                if (newStaticSchedule != null && newStaticSchedule.name.equals(trimmedName)) {
+                    // currentUser.mySchedules was updated by newSchedule, save user data to persist it
+                    // ***** FIX: Call the correct method name *****
+                    currentUser.saveUserByFirebaseUid(); // PERSIST mySchedules change
+
+                    System.out.println("Successfully created schedule: " + trimmedName);
+                    CreateScheduleResponse responsePayload = new CreateScheduleResponse(newStaticSchedule, currentUser);
+                    ctx.status(201).json(responsePayload);
+                } else {
+                    System.err.println("[User UID: " + currentUser.firebaseUid + "] Error creating new schedule: static currentSchedule mismatch/null.");
+                    throw new InternalServerErrorResponse("Failed to confirm new schedule creation.");
+                }
+            } finally {
+                scheduleManager.user = originalManagerUser; // Restore
+            }
+        } catch (ConflictResponse e) { throw e; } // Re-throw conflict
+        catch (Exception e) {
+            System.err.println("[User UID: " + currentUser.firebaseUid + "] Create new schedule error: " + e.getMessage()); e.printStackTrace();
+            throw new InternalServerErrorResponse("Unexpected error creating new schedule.");
         }
     }
 
+    /** Deletes schedule for the authenticated user. Relatively safe. */
     private static void deleteSchedule(Context ctx, ScheduleManager scheduleManager) {
-        // ... (implementation) ...
-        if (scheduleManager.user == null) {
-            ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "No user session found"));
-            return;
-        }
+        User currentUser = loadUserFromContext(ctx);
         String scheduleName = ctx.pathParam("scheduleName");
-        if (scheduleName == null || scheduleName.trim().isEmpty()) {
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Schedule name required in URL path"));
-            return;
-        }
-        System.out.println("Received request to delete schedule: " + scheduleName + " for user " + scheduleManager.user.name);
+        if (scheduleName == null || scheduleName.trim().isEmpty()) { throw new BadRequestResponse("Schedule name required"); }
+        System.out.println("[User UID: " + currentUser.firebaseUid + "] Deleting schedule: '" + scheduleName + "'.");
 
         try {
-            // user.deleteSchedule removes the file and the entry from mySchedules list
-            scheduleManager.user.deleteSchedule(scheduleName);
+            currentUser.deleteSchedule(scheduleName); // Throws NoSuchElementException if not found, IOException on file error
 
-            // If the deleted schedule was the active one, clear it
-            Schedule current = ScheduleManager.getCurrentSchedule();
-            if (current != null && current.name.equals(scheduleName)) {
+            Schedule staticCurrent = ScheduleManager.getCurrentSchedule();
+            if (staticCurrent != null && staticCurrent.name.equals(scheduleName)) {
+                System.out.println("WARNING: Clearing STATIC current schedule because it matched deleted name: '" + scheduleName + "'.");
                 ScheduleManager.currentSchedule = null;
-                scheduleManager.initializeUndoRedoAfterLoad(); // Reset history
-                System.out.println("Cleared active schedule because it was deleted.");
+                if (scheduleManager.editHistory != null) scheduleManager.editHistory.clear();
+                if (scheduleManager.undoneHistory != null) scheduleManager.undoneHistory.clear();
             }
 
-            // Save the user data to persist the removal from mySchedules list
-            scheduleManager.user.saveUserData();
+            // deleteSchedule should ideally save user data itself, but we ensure it here
+            // currentUser.saveUserData(); // Assuming User.deleteSchedule now saves the user data
 
-            System.out.println("Schedule '" + scheduleName + "' deleted successfully via API.");
-            // Return the updated user object (with the reduced schedule list)
-            // Create a safe copy for the response
-            User publicUser = new User(scheduleManager.user.name, "");
-            publicUser.idNumber = scheduleManager.user.idNumber;
-            publicUser.major = scheduleManager.user.major;
-            publicUser.year = scheduleManager.user.year;
-            publicUser.mySchedules = (scheduleManager.user.mySchedules != null) ? new ArrayList<>(scheduleManager.user.mySchedules) : new ArrayList<>();
+            System.out.println("Schedule '" + scheduleName + "' deleted successfully.");
+            User publicUser = new User(); // Create DTO
+            publicUser.firebaseUid = currentUser.firebaseUid;
+            publicUser.name = currentUser.name;
+            publicUser.email = currentUser.email;
+            /* copy other non-sensitive fields */
+            publicUser.idNumber = currentUser.idNumber;
+            publicUser.major = currentUser.major;
+            publicUser.year = currentUser.year;
+            publicUser.mySchedules = (currentUser.mySchedules != null) ? new ArrayList<>(currentUser.mySchedules) : new ArrayList<>();
 
             ctx.status(200).json(Map.of(
                     "message", "Schedule '" + scheduleName + "' deleted successfully",
-                    "user", publicUser // Send updated user data
+                    "user", publicUser
             ));
 
-        } catch (Exception e) {
-            System.err.println("Delete schedule error: " + e.getMessage());
-            e.printStackTrace();
-            // Attempt to provide a more specific error if possible
-            if (e.getMessage() != null && e.getMessage().toLowerCase().contains("not found")) {
-                ctx.status(404).json(new ScheduleMeApp.ErrorResponse("Not Found", "Schedule '" + scheduleName + "' not found"));
-            } else if (e.getMessage() != null && e.getMessage().toLowerCase().contains("unable to delete")) {
-                ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to delete schedule file on server."));
-            } else {
-                ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Failed to delete schedule due to an unexpected error."));
-            }
+        } catch (NoSuchElementException e) { throw new NotFoundResponse("Schedule '" + scheduleName + "' not found"); }
+        // **** FIXED: Catch IOException ****
+        catch (IOException e) {
+            System.err.println("[User UID: " + currentUser.firebaseUid + "] Delete schedule IO error: " + e.getMessage()); e.printStackTrace();
+            // **** FIXED: e is IOException, getMessage() is valid ****
+            throw new InternalServerErrorResponse("Failed to delete schedule file: " + e.getMessage());
+        } catch (Exception e) { // Catch other unexpected errors
+            System.err.println("[User UID: " + currentUser.firebaseUid + "] Delete schedule error: " + e.getMessage()); e.printStackTrace();
+            throw new InternalServerErrorResponse("Unexpected error deleting schedule.");
         }
     }
-
-    // --- End Handler Methods ---
-
-    // /**********************************************************************/
-    // /* START OF NEW CODE                                                  */
-    // /**********************************************************************/
-    /**
-     * Handles POST requests to undo the last action on the current schedule.
-     * @param ctx The Javalin context.
-     * @param scheduleManager The schedule manager instance.
-     */
-    private static void undoLastAction(Context ctx, ScheduleManager scheduleManager) {
-        System.out.println(">>> ENTERED undoLastAction handler");
-        if (scheduleManager.user == null) {
-            ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "User not logged in"));
-            return;
-        }
-        if (ScheduleManager.getCurrentSchedule() == null) {
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "No active schedule to perform undo on"));
-            return;
-        }
-
-        try {
-            boolean success = scheduleManager.undo();
-            if (success) {
-                System.out.println("Undo successful via API.");
-                ctx.status(200).json(ScheduleManager.getCurrentSchedule()); // Return the updated schedule
-            } else {
-                System.out.println("Undo failed (no actions to undo) via API.");
-                // Use 400 Bad Request or 409 Conflict? 400 seems reasonable if nothing to undo.
-                ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Nothing to undo"));
-            }
-        } catch (Exception e) {
-            System.err.println("Undo unexpected error: " + e.getMessage());
-            e.printStackTrace();
-            ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Undo failed due to an unexpected error."));
-        }
-    }
-
-    /**
-     * Handles POST requests to redo the last undone action on the current schedule.
-     * @param ctx The Javalin context.
-     * @param scheduleManager The schedule manager instance.
-     */
-    private static void redoLastAction(Context ctx, ScheduleManager scheduleManager) {
-        System.out.println(">>> ENTERED redoLastAction handler");
-        if (scheduleManager.user == null) {
-            ctx.status(401).json(new ScheduleMeApp.ErrorResponse("Unauthorized", "User not logged in"));
-            return;
-        }
-        if (ScheduleManager.getCurrentSchedule() == null) {
-            ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "No active schedule to perform redo on"));
-            return;
-        }
-
-        try {
-            boolean success = scheduleManager.redo();
-            if (success) {
-                System.out.println("Redo successful via API.");
-                ctx.status(200).json(ScheduleManager.getCurrentSchedule()); // Return the updated schedule
-            } else {
-                System.out.println("Redo failed (no actions to redo) via API.");
-                ctx.status(400).json(new ScheduleMeApp.ErrorResponse("Bad Request", "Nothing to redo"));
-            }
-        } catch (Exception e) {
-            System.err.println("Redo unexpected error: " + e.getMessage());
-            e.printStackTrace();
-            ctx.status(500).json(new ScheduleMeApp.ErrorResponse("Server Error", "Redo failed due to an unexpected error."));
-        }
-    }
-    // /**********************************************************************/
-    // /* END OF NEW CODE                                                    */
-    // /**********************************************************************/
 
 } // End of ScheduleController class

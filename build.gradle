@@ -18,6 +18,9 @@ dependencies {
     // GSON (Chosen Library)
     implementation 'com.google.code.gson:gson:2.10.1' // Or latest stable version
 
+    // Firebase
+    implementation("com.google.firebase:firebase-admin:9.2.0") // Use the latest version
+
     // REMOVED Jackson:
     // implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
     // implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.2'

@@ -1,9 +1,15 @@
-// src/pages/LoginPage.js
 import React, { useState } from 'react';
-// Import the useAuth hook
-import { useAuth } from '../context/AuthContext';
+// ** REMOVE useAuth import if login function is removed from context **
+// import { useAuth } from '../context/AuthContext';
 
-// Import MUI components for the form layout and elements
+// ** NEW IMPORTS for Firebase **
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword
+} from "firebase/auth";
+import { auth as firebaseAuth } from '../firebaseConfig'; // Import Firebase auth instance
+
+// Import MUI components (remain the same)
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
@@ -17,53 +23,49 @@ import Container from '@mui/material/Container';
 import Paper from '@mui/material/Paper';
 import Alert from '@mui/material/Alert';
 
-// Import the shared Layout component
+// Import the shared Layout component (remains the same)
 import Layout from '../components/Layout';
 
 /**
  * LoginPage Component
- * Provides a user interface for logging into the application or registering a new account.
+ * Provides UI for Firebase Email/Password Login and Registration.
  */
 function LoginPage() {
-  // Get the login function from the AuthContext
-  const auth = useAuth();
+  // ** If useAuth is only needed for context methods we removed (like login), remove this **
+  // const auth = useAuth(); // May not be needed directly here anymore
 
-  // State variables for form inputs
-  const [username, setUsername] = useState('');
+  // State variables - ** Renamed username to email **
+  const [email, setEmail] = useState(''); // Use email for Firebase
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState(''); // For registration
-  const [isRegisterMode, setIsRegisterMode] = useState(false); // Toggle between Login and Register
-  const [registerSuccess, setRegisterSuccess] = useState(null); // Message on successful registration
-
-  // State variables for handling login/registration process feedback
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  // Keep isLoading and error states
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Remove registerSuccess - navigation handles success indication
+  // const [registerSuccess, setRegisterSuccess] = useState(null);
 
-  /**
-   * Toggles between Login and Register modes, clearing errors and inputs.
-   */
   const toggleMode = (event) => {
-      event.preventDefault(); // Prevent default link behavior
+      event.preventDefault();
       setIsRegisterMode(!isRegisterMode);
-      // Clear fields and errors when switching modes
-      setUsername('');
+      // Clear fields and errors
+      setEmail('');
       setPassword('');
       setConfirmPassword('');
       setError(null);
-      setRegisterSuccess(null);
+      // setRegisterSuccess(null); // Removed
   };
 
   /**
-   * Handles the submission of the login or registration form.
-   * @param {React.FormEvent<HTMLFormElement>} event - The form submission event.
+   * Handles form submission using Firebase Auth.
    */
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError(null);
-    setRegisterSuccess(null);
+    // setRegisterSuccess(null); // Removed
 
-    const currentUsername = username.trim(); // Use consistent trimmed username
-    const currentPassword = password; // Use raw password
+    const currentEmail = email.trim(); // Use email
+    const currentPassword = password;
 
     // --- Registration Mode ---
     if (isRegisterMode) {
@@ -71,134 +73,139 @@ function LoginPage() {
             setError("Passwords do not match.");
             return;
         }
-        if (!currentUsername || !currentPassword) {
-            setError("Username and password cannot be empty.");
+        if (!currentEmail || !currentPassword) {
+            // Update error message
+            setError("Email and password cannot be empty.");
             return;
         }
 
         setIsLoading(true);
-        console.log('Attempting registration with:', { username: currentUsername });
+        console.log('Attempting Firebase registration with:', { email: currentEmail });
 
         try {
-            // 1. Call Create User API
-            const registerApiUrl = `http://localhost:7070/api/users?username=${encodeURIComponent(currentUsername)}&password=${encodeURIComponent(currentPassword)}`;
-            const registerResponse = await fetch(registerApiUrl, { method: 'POST' });
-
-            if (!registerResponse.ok) {
-                const errorData = await registerResponse.json().catch(() => ({ message: `Registration failed. Status: ${registerResponse.status}` }));
-                throw new Error(errorData.error || errorData.message || `Registration failed. Status: ${registerResponse.status}`);
-            }
-
-            const successData = await registerResponse.json();
-            console.log('Registration successful:', successData);
-            setRegisterSuccess(`Account '${currentUsername}' created! Logging you in...`); // Update message
-
-            // ***** START OF NEW CODE *****
-            // 2. Automatically attempt login after successful registration
-            console.log('Attempting auto-login for new user:', currentUsername);
-            try {
-                const loginApiUrl = `http://localhost:7070/api/auth/login?username=${encodeURIComponent(currentUsername)}&password=${encodeURIComponent(currentPassword)}`;
-                const loginResponse = await fetch(loginApiUrl, { method: 'POST' });
-
-                if (!loginResponse.ok) {
-                    // Handle login failure after registration (should be rare if registration succeeded)
-                    const loginErrorData = await loginResponse.json().catch(() => ({ message: `Auto-login failed. Status: ${loginResponse.status}` }));
-                    throw new Error(loginErrorData.error || loginErrorData.message || `Auto-login failed. Status: ${loginResponse.status}`);
-                }
-
-                const userData = await loginResponse.json();
-                console.log('Auto-login successful, user data received:', userData);
-                auth.login(userData); // Call context login to set user and navigate
-
-                // No need to clear form here, navigation will happen
-
-            } catch (loginErr) {
-                 // If auto-login fails, show error but inform user account was created
-                 console.error("Auto-login after registration failed:", loginErr);
-                 setError(`Account created, but auto-login failed: ${loginErr.message}. Please log in manually.`);
-                 setIsRegisterMode(false); // Switch to login mode so they can try
-                 // Clear form fields for manual login attempt
-                 setUsername('');
-                 setPassword('');
-                 setConfirmPassword('');
-            }
-            // ***** END OF NEW CODE *****
+            // ** NEW: Use Firebase createUserWithEmailAndPassword **
+            const userCredential = await createUserWithEmailAndPassword(
+                firebaseAuth,
+                currentEmail,
+                currentPassword
+            );
+            // Registration successful AND user is auto-logged in by Firebase.
+            console.log('Firebase registration successful:', userCredential.user.uid);
+            // No need to call context.login or manually log in.
+            // The onAuthStateChanged listener in AuthContext will handle navigation.
+            // You could briefly show a success message before navigation happens,
+            // but often the navigation itself is sufficient feedback.
+            // setRegisterSuccess("Account created successfully! Redirecting..."); // Optional
 
         } catch (regErr) {
-             console.error("Registration API call failed:", regErr);
-             setError(regErr.message || "An error occurred during registration.");
+             console.error("Firebase registration failed:", regErr.code, regErr.message);
+             // Provide user-friendly Firebase errors
+             let friendlyErrorMessage = "An error occurred during registration.";
+             switch (regErr.code) {
+                 case 'auth/email-already-in-use':
+                     friendlyErrorMessage = "This email address is already registered.";
+                     break;
+                 case 'auth/invalid-email':
+                     friendlyErrorMessage = "Please enter a valid email address.";
+                     break;
+                 case 'auth/weak-password':
+                     friendlyErrorMessage = "Password is too weak. It should be at least 6 characters long.";
+                     break;
+                 default:
+                     friendlyErrorMessage = regErr.message; // Fallback
+             }
+             setError(friendlyErrorMessage);
         } finally {
-            // Only set loading false if auto-login didn't navigate away
-            // Navigation might happen before this runs if login is fast
-            setIsLoading(false);
+            setIsLoading(false); // Set loading false here
         }
 
     // --- Login Mode ---
     } else {
-        if (!currentUsername || !currentPassword) {
-            setError("Username and password cannot be empty.");
+        if (!currentEmail || !currentPassword) {
+            // Update error message
+            setError("Email and password cannot be empty.");
             return;
         }
         setIsLoading(true);
-        console.log('Attempting login with:', { username: currentUsername });
+        console.log('Attempting Firebase login with:', { email: currentEmail });
         try {
-            const apiUrl = `http://localhost:7070/api/auth/login?username=${encodeURIComponent(currentUsername)}&password=${encodeURIComponent(currentPassword)}`;
-            const response = await fetch(apiUrl, { method: 'POST' });
+            // ** NEW: Use Firebase signInWithEmailAndPassword **
+            const userCredential = await signInWithEmailAndPassword(
+                firebaseAuth,
+                currentEmail,
+                currentPassword
+            );
+            // Login successful. User is logged in.
+            console.log('Firebase login successful:', userCredential.user.uid);
+            // No need to call context.login.
+            // The onAuthStateChanged listener in AuthContext will handle navigation.
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ message: `Login failed. Status: ${response.status}` }));
-                throw new Error(errorData.error || errorData.message || `Login failed. Status: ${response.status}`);
-            }
-
-            const userData = await response.json();
-            console.log('Login successful, user data received:', userData);
-            auth.login(userData); // Call context login
-
-        } catch (err) {
-            console.error("Login API call failed:", err);
-            setError(err.message || "An error occurred during login.");
+        } catch (loginErr) {
+            console.error("Firebase login failed:", loginErr.code, loginErr.message);
+            // Provide user-friendly Firebase errors
+             let friendlyErrorMessage = "An error occurred during login.";
+             switch (loginErr.code) {
+                 case 'auth/user-not-found':
+                 case 'auth/wrong-password':
+                 // Combine these for security - don't reveal which is wrong
+                     friendlyErrorMessage = "Invalid email or password.";
+                     break;
+                 case 'auth/invalid-email':
+                     friendlyErrorMessage = "Please enter a valid email address.";
+                     break;
+                 case 'auth/user-disabled':
+                      friendlyErrorMessage = "This account has been disabled.";
+                      break;
+                 case 'auth/invalid-credential': // More generic error for v9+
+                      friendlyErrorMessage = "Invalid email or password.";
+                      break;
+                 default:
+                     friendlyErrorMessage = loginErr.message; // Fallback
+             }
+            setError(friendlyErrorMessage);
         } finally {
             setIsLoading(false);
         }
     }
   };
 
+  // --- JSX Structure (Mostly the same, just update labels/IDs for email) ---
   return (
     <Layout>
       <Container component="main" maxWidth="xs">
         <Paper elevation={3} sx={{ marginTop: 8, padding: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <Avatar sx={{ m: 1, bgcolor: isRegisterMode ? 'success.main' : 'secondary.main' }}>
+          {/* Avatar and Title (same logic) */}
+           <Avatar sx={{ m: 1, bgcolor: isRegisterMode ? 'success.main' : 'secondary.main' }}>
             {isRegisterMode ? <PersonAddAlt1Icon /> : <LockOutlinedIcon />}
           </Avatar>
           <Typography component="h1" variant="h5">
             {isRegisterMode ? 'Sign Up' : 'Sign In'}
           </Typography>
 
+          {/* Error Alert (same logic) */}
           {error && (
             <Alert severity="error" sx={{ width: '100%', mt: 2 }}>
               {error}
             </Alert>
           )}
-          {registerSuccess && !error && (
-             <Alert severity="success" sx={{ width: '100%', mt: 2 }}>
-              {registerSuccess}
-            </Alert>
-          )}
+          {/* Removed registerSuccess Alert */}
 
           <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1, width: '100%' }}>
+            {/* ** UPDATED Field for Email ** */}
             <TextField
               margin="normal"
               required
               fullWidth
-              id="username"
-              label="Username"
-              name="username"
-              autoComplete="username"
+              id="email" // Update ID
+              label="Email Address" // Update Label
+              name="email" // Update Name
+              autoComplete="email" // Update autoComplete
               autoFocus
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={email} // Bind to email state
+              onChange={(e) => setEmail(e.target.value)} // Update state setter
               disabled={isLoading}
             />
+            {/* Password Field (same logic, maybe update autoComplete) */}
             <TextField
               margin="normal"
               required
@@ -212,7 +219,7 @@ function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
             />
-
+            {/* Confirm Password Field (same logic) */}
             {isRegisterMode && (
                 <TextField
                   margin="normal"
@@ -228,7 +235,7 @@ function LoginPage() {
                   disabled={isLoading}
                 />
             )}
-
+            {/* Submit Button (same logic) */}
             <Button
               type="submit"
               fullWidth
@@ -239,7 +246,7 @@ function LoginPage() {
             >
               {isLoading ? (isRegisterMode ? 'Signing Up...' : 'Signing In...') : (isRegisterMode ? 'Sign Up' : 'Sign In')}
             </Button>
-
+            {/* Toggle Link (same logic) */}
             <Grid container justifyContent="flex-end">
               <Grid item>
                 <Link href="#" variant="body2" onClick={toggleMode}>
