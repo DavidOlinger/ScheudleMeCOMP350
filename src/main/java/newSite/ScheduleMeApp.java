@@ -8,6 +8,7 @@ import io.javalin.json.JavalinGson;
 import io.javalin.http.staticfiles.Location;
 
 // Import your core classes
+import newSite.api.AIController;
 import newSite.core.Course;
 import newSite.core.Event;
 import newSite.core.EventDeserializer;
@@ -87,6 +88,7 @@ public class ScheduleMeApp {
         UserController.registerEndpoints(app, scheduleManager);
         CourseController.registerEndpoints(app, search);
         ScheduleController.registerEndpoints(app, scheduleManager); // Pass the manager which now knows about search
+        AIController.registerEndpoints(app, scheduleManager);
 
         // 5. Register General Exception Handler (Keep this last)
         app.exception(Exception.class, (e, ctx) -> {

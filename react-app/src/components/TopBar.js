@@ -3,163 +3,107 @@ import React from 'react';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
+// Removed Button import as we only use IconButton now for user actions
 import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import SaveIcon from '@mui/icons-material/Save';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import IconButton from '@mui/material/IconButton'; // Keep IconButton
 import Tooltip from '@mui/material/Tooltip';
-// /**********************************************************************/
-// /* START OF MODIFICATION (Ensure Link is imported)                    */
-// /**********************************************************************/
-import { Link as RouterLink } from 'react-router-dom'; // Import RouterLink
-// /**********************************************************************/
-// /* END OF MODIFICATION                                                */
-// /**********************************************************************/
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
+import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
+import LogoutIcon from '@mui/icons-material/Logout';
+import { Link as RouterLink } from 'react-router-dom'; // Keep RouterLink for title and profile
 
 // Import the useAuth hook
 import { useAuth } from '../context/AuthContext';
-// Import the useSchedule hook
-import { useSchedule } from '../context/ScheduleContext';
-
-
-// Optional: Import an icon if you like
-// import SchoolIcon from '@mui/icons-material/School';
 
 /**
- * TopBar Component
- * Renders the main application navigation bar at the top of the screen.
- * Displays the application title, user information from AuthContext, and action buttons.
+ * TopBar Component (Revised Again)
+ * Renders the main application navigation bar with a blue background.
+ * - AI Chat, Profile, and Logout buttons are now IconButtons with Tooltips.
+ * - Profile button uses the exact code snippet provided by the user, linking
+ * internally to the React '/profile' route via RouterLink.
  */
-const TopBar = () => {
-  // Get authentication state and functions from the context
-  const { currentUser, loading: authLoading, logout } = useAuth(); // Destructure what's needed
-  // Get schedule context for saving
-  const { saveSchedule, saveStatus, scheduleData } = useSchedule();
+const TopBar = ({ toggleAiChat, isAiChatOpen }) => {
+    const { currentUser, loading: authLoading, logout } = useAuth();
 
+    const handleLogout = () => {
+        console.log("Logout button clicked");
+        logout();
+    };
 
-  // --- Action Handlers ---
-  const handleLogout = () => {
-    console.log("Logout button clicked");
-    // Call the logout function from the context
-    logout();
-  };
+    return (
+        <AppBar position="static" color="primary">
+            <Toolbar variant="dense">
+                {/* Application Title - Link to internal editor page */}
+                <Typography variant="h6" component="div" sx={{ fontWeight: 'medium' }}>
+                    <RouterLink to="/editor" style={{ textDecoration: 'none', color: 'inherit' }}>
+                        ScheduleMe
+                    </RouterLink>
+                </Typography>
 
-  const handleSettings = () => {
-    console.log("Settings button clicked (placeholder)");
-    // TODO: Implement navigation or modal display for settings
-  };
+                {/* Spacer */}
+                <Box sx={{ flexGrow: 1 }} />
 
-  const handleSave = () => {
-      console.log("Save button clicked");
-      saveSchedule(); // Call save function from context
-  };
+                {/* User Info and Actions */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    {authLoading && <Typography variant="body2" color="inherit" sx={{ mr: 2 }}>Loading...</Typography>}
 
+                    {currentUser ? (
+                        <>
+                            {/* AI Chat Button - IconButton */}
+                            <Tooltip title="AI Assistant">
+                                <IconButton
+                                    color="inherit"
+                                    onClick={toggleAiChat}
+                                    sx={{
+                                        bgcolor: isAiChatOpen ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                                        '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' }
+                                    }}
+                                >
+                                    <SmartToyOutlinedIcon />
+                                </IconButton>
+                            </Tooltip>
 
-  return (
-    // AppBar provides the main bar structure.
-    // position="static" means it stays at the top and doesn't fix during scroll.
-    <AppBar position="static">
-      {/* Toolbar helps arrange items horizontally with standard padding. */}
-      <Toolbar>
-        {/* Optional: Add an icon before the title */}
-        {/* <SchoolIcon sx={{ mr: 2 }} /> */}
+                            {/* Profile Button - Using user's exact snippet, adapted for IconButton */}
+                            <Tooltip title="View Profile">
+                                <IconButton
+                                    color="inherit"
+                                    component={RouterLink} // Use RouterLink for navigation
+                                    to="/profile"         // Link to the internal profile route
+                                    sx={{
+                                        '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' } // Hover effect
+                                        // Removed mr: 1 from original snippet as gap is handled by parent Box
+                                    }}
+                                >
+                                    <AccountCircleOutlinedIcon /> {/* Display only the icon */}
+                                </IconButton>
+                            </Tooltip>
 
-        {/* Application Title */}
-        <Typography variant="h6" component="div" sx={{ mr: 2 }}>
-          ScheduleMe {/* Replace with your actual app name */}
-        </Typography>
-
-        {/* This Box acts as a spacer, pushing subsequent items to the right */}
-        <Box sx={{ flexGrow: 1 }} />
-
-        {/* --- User Info and Actions --- */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}> {/* Added gap */}
-          {/* Display loading state */}
-          {authLoading && <Typography variant="body2" sx={{ mr: 2 }}>Loading...</Typography>}
-
-          {/* Display user info/actions OR guest view based on currentUser */}
-          {currentUser ? (
-            // /**********************************************************************/
-            // /* START OF MODIFICATION (Logged-in user view)                      */
-            // /**********************************************************************/
-            <> {/* Use a Fragment to group multiple elements */}
-              {/* Welcome message */}
-              <Typography variant="body1" sx={{ mr: 1 }}>
-                Welcome, {currentUser.name || 'User'}!
-              </Typography>
-
-              {/* Save Button */}
-              <Tooltip title={saveStatus.error ? `Save Error: ${saveStatus.error}` : (saveStatus.success ? "Schedule Saved!" : "Save Current Schedule")}>
-                <span> {/* Wrap button in span for tooltip when disabled */}
-                    <Button
-                        color="inherit"
-                        variant="outlined" // Make it stand out slightly
-                        onClick={handleSave}
-                        disabled={saveStatus.saving || !scheduleData || scheduleData.name === 'No Schedule Loaded'} // Disable while saving or if no schedule
-                        startIcon={
-                            saveStatus.saving ? <CircularProgress size={20} color="inherit" /> :
-                            saveStatus.success ? <CheckCircleOutlineIcon color="success"/> :
-                            saveStatus.error ? <ErrorOutlineIcon color="error"/> :
-                            <SaveIcon />
-                        }
-                        sx={{
-                            mr: 1, // Reduced margin
-                            borderColor: 'rgba(255, 255, 255, 0.5)', // Lighter border
-                            '&:hover': {
-                                borderColor: 'rgba(255, 255, 255, 0.8)',
-                                bgcolor: 'rgba(255, 255, 255, 0.1)'
-                            }
-                        }}
-                    >
-                        {saveStatus.saving ? 'Saving...' : (saveStatus.success ? 'Saved' : (saveStatus.error ? 'Error' : 'Save'))}
-                    </Button>
-                 </span>
-              </Tooltip>
-
-              {/* Profile Button */}
-              <Button
-                  color="inherit"
-                  component={RouterLink} // Use RouterLink for navigation
-                  to="/profile"          // Link to the new profile route
-                  sx={{ mr: 1 }}         // Add some margin
-              >
-                  Profile
-              </Button>
-
-              {/* Settings Button (Placeholder) */}
-              {/* <Button color="inherit" onClick={handleSettings}>Settings</Button> */}
-
-              {/* Logout Button */}
-              <Button color="inherit" onClick={handleLogout}>Logout</Button>
-            </>
-            // /**********************************************************************/
-            // /* END OF MODIFICATION                                                */
-            // /**********************************************************************/
-          ) : (
-            // /**********************************************************************/
-            // /* START OF MODIFICATION (Guest view - ensure this part exists)     */
-            // /**********************************************************************/
-            <> {/* Use a Fragment for the guest view */}
-              {/* Show "Guest" if no user is loaded and not loading */}
-              {!authLoading && (
-                 <Typography variant="body1" sx={{ mr: 2 }}>
-                   Guest
-                 </Typography>
-              )}
-              {/* You might show a Login button here instead if needed */}
-              {/* Example: <Button color="inherit" component={RouterLink} to="/login">Login</Button> */}
-             </>
-            // /**********************************************************************/
-            // /* END OF MODIFICATION                                                */
-            // /**********************************************************************/
-          )} {/* End of the ternary operator */}
-        </Box> {/* End of Box containing user info/actions */}
-      </Toolbar>
-    </AppBar>
-  );
+                            {/* Logout Button - IconButton */}
+                            <Tooltip title="Logout">
+                                 <IconButton
+                                    color="inherit"
+                                    onClick={handleLogout}
+                                    sx={{
+                                        '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' }
+                                    }}
+                                >
+                                    <LogoutIcon /> {/* Display only the icon */}
+                                </IconButton>
+                            </Tooltip>
+                        </>
+                    ) : (
+                        <>
+                            {!authLoading && (
+                                <Typography variant="body2" color="inherit" sx={{ mr: 1 }}>
+                                    Guest
+                                </Typography>
+                            )}
+                        </>
+                    )}
+                </Box>
+            </Toolbar>
+        </AppBar>
+    );
 };
 
-// Export the component for use in Layout.js
 export default TopBar;

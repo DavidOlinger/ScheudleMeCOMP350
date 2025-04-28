@@ -110,3 +110,12 @@ bin/
 /users/saving/schedules/thirdSched.json
 /users/tom.json
 /users/u1.json
+
+# Ignore Python AI Agent secrets
+ai-agent/.env
+
+# ignore other python stuff
+ai-agent/__pycache__/
+ai-agent/*.pyc
+ai-agent/.venv/
+ai-agent/venv/

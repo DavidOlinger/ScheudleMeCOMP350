@@ -1,37 +1,21 @@
 // src/pages/MainPage.js
-import React from 'react';
-// ***** START OF MODIFICATIONS *****
-import { useState } from 'react'; // Import useState hook
-import Button from '@mui/material/Button'; // Import Button component
-import AddIcon from '@mui/icons-material/Add'; // Optional: Import Add icon
-// ***** END OF MODIFICATIONS *****
+import React, { useState } from 'react';
+import Button from '@mui/material/Button';
+import AddIcon from '@mui/icons-material/Add';
 import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper'; // Used for visual separation of panes
-// /**********************************************************************/
-// /* START OF NEW CODE                            */
-// /**********************************************************************/
-// Import Stack for layout and Icons for buttons
-import Stack from '@mui/material/Stack';
-import UndoIcon from '@mui/icons-material/Undo';
-import RedoIcon from '@mui/icons-material/Redo';
-// /**********************************************************************/
-// /* END OF NEW CODE                             */
-// /**********************************************************************/
-// Import Alert for displaying undo/redo errors
-import Alert from '@mui/material/Alert';
+import Paper from '@mui/material/Paper';
+// Removed unused imports for Stack, UndoIcon, RedoIcon, Alert if only used for moved buttons
 
-
-// Import the overall layout component
+// Import components
 import Layout from '../components/Layout';
-
-// Import components for search, schedule view, and controls
 import SearchBar from '../components/SearchBar';
 import ScheduleView from '../components/ScheduleView';
-// ***** START OF MODIFICATIONS *****
-import CustomEventForm from '../components/CustomEventForm'; // Import the new form component
-import { useSchedule } from '../context/ScheduleContext'; // Import the schedule context hook
-// ***** END OF MODIFICATIONS *****
+import CustomEventForm from '../components/CustomEventForm';
 import ScheduleControlPanel from '../components/ScheduleControlPanel';
+import AiChatInterface from '../components/AiChatInterface'; // Keep AI Interface import
+
+// Import hooks
+import { useSchedule } from '../context/ScheduleContext';
 
 // Define the width for the sidebar
 const SIDEBAR_WIDTH = 600; // Adjust this value as needed (in pixels)
@@ -39,221 +23,132 @@ const SIDEBAR_WIDTH = 600; // Adjust this value as needed (in pixels)
 /**
  * MainPage Component (Updated)
  * Represents the main view using a fixed-width sidebar layout.
- * - Left Sidebar: Contains course search, custom event creation, and schedule management controls.
- * - Main Content: Displays the weekly schedule view.
+ * - Undo/Redo/AI Chat buttons removed from sidebar.
+ * - Passes AI Chat state/toggle up to Layout/TopBar.
  */
 function MainPage() {
-  // ***** START OF NEW CODE *****
-  // State to control the visibility of the custom event dialog
-  const [isCustomEventFormOpen, setIsCustomEventFormOpen] = useState(false);
+    // State for dialog/panel visibility
+    const [isCustomEventFormOpen, setIsCustomEventFormOpen] = useState(false);
+    const [isAiChatOpen, setIsAiChatOpen] = useState(false); // Keep state for AI Interface
 
-  // /**********************************************************************/
-  // /* START OF MODIFICATION                                              */
-  // /**********************************************************************/
-  // Get the necessary functions and state from the ScheduleContext
-  // Include undo/redo functions and states
-  const {
-      addCustomEvent,
-      isAddingCustom,
-      customEventError,
-      undoSchedule, // New function
-      redoSchedule, // New function
-      isUndoing,    // New state
-      isRedoing,    // New state
-      undoRedoError // New state for specific errors
-  } = useSchedule();
-  // /**********************************************************************/
-  // /* END OF MODIFICATION                                                */
-  // /**********************************************************************/
+    // Get necessary functions and state from the ScheduleContext
+    // Removed undo/redo related state/functions if they are now fully managed in ScheduleView
+    const { addCustomEvent, isAddingCustom, customEventError } = useSchedule();
+    // Note: If ScheduleView needs undo/redo state passed down, keep them here.
+    // Assuming ScheduleView will get them directly from context for now.
 
 
-  // Handler to open the custom event form dialog
-  const handleOpenCustomEventForm = () => {
-    setIsCustomEventFormOpen(true);
-  };
+    // Handler to open the custom event form dialog
+    const handleOpenCustomEventForm = () => setIsCustomEventFormOpen(true);
+    // Handler to close the custom event form dialog
+    const handleCloseCustomEventForm = () => setIsCustomEventFormOpen(false);
+    // Handler to toggle AI Chat visibility (needed for interface)
+    const toggleAiChat = () => setIsAiChatOpen((prev) => !prev);
 
-  // Handler to close the custom event form dialog
-  const handleCloseCustomEventForm = () => {
-    setIsCustomEventFormOpen(false);
-  };
+    // Handler to process the submission from the CustomEventForm
+    const handleAddCustomEvent = async (eventData) => {
+        console.log("Submitting custom event:", eventData);
+        const success = await addCustomEvent(eventData);
+        if (success) {
+            handleCloseCustomEventForm();
+        }
+    };
 
-  // Handler to process the submission from the CustomEventForm
-  const handleAddCustomEvent = async (eventData) => {
-    console.log("Submitting custom event:", eventData);
-    // Call the addCustomEvent function from the context
-    const success = await addCustomEvent(eventData);
-    // If the event was added successfully (context function returns true), close the dialog
-    if (success) {
-        handleCloseCustomEventForm();
-    }
-    // If there was an error, the 'customEventError' state from context will be updated,
-    // and the CustomEventForm component will display it.
-  };
-
-  // /**********************************************************************/
-  // /* START OF MODIFICATION                                              */
-  // /**********************************************************************/
-  // Updated handlers for Undo/Redo buttons to call context functions
-  const handleUndoClick = () => {
-      console.log("Undo clicked - calling context function");
-      undoSchedule(); // Call the context function
-  };
-
-  const handleRedoClick = () => {
-      console.log("Redo clicked - calling context function");
-      redoSchedule(); // Call the context function
-  };
-  // /**********************************************************************/
-  // /* END OF MODIFICATION                                                */
-  // /**********************************************************************/
-  // ***** END OF NEW CODE *****
+    // Removed handleUndoClick, handleRedoClick as buttons moved
 
 
-  return (
-    // Use the Layout component (which now provides padding)
-    <Layout>
-      {/* Use Flexbox for the main two-column layout */}
-      {/* Attempt to make the main content area fill the viewport height below the TopBar */}
-      <Box sx={{
-          display: 'flex',
-          gap: 3,
-          // Calculate height: 100vh (viewport height) - TopBar height (approx 64px) - Layout padding (24px top + 24px bottom = 48px)
-          // Adjust 64px if your TopBar height is different.
-          height: 'calc(100vh - 64px - 48px)',
-          overflow: 'hidden' // Prevent this container from scrolling
-         }}
-      >
-
-        {/* --- Left Sidebar --- */}
-        <Box
-          sx={{
-            width: SIDEBAR_WIDTH,
-            flexShrink: 0, // Prevent sidebar from shrinking
-            display: 'flex', // Use flexbox for children arrangement
-            flexDirection: 'column', // Stack children vertically
-            height: '100%', // Make sidebar take full height of the flex container
-          }}
-        >
-           {/* Use Paper for background and elevation */}
-           {/* Apply overflowY: 'auto' ONLY to the Paper to allow scrolling *within* the sidebar */}
-           <Paper
-             elevation={2}
-             sx={{
-               p: 2, // Padding inside the sidebar paper
-               display: 'flex',
-               flexDirection: 'column',
-               gap: 3, // Space between sections
-               flexGrow: 1, // Allow paper to grow vertically
-               overflowY: 'auto', // Allow scrolling *within* the sidebar if needed
-               // Add position relative so Popper can calculate width correctly if needed
-               position: 'relative'
-             }}
-           >
-             {/* /**********************************************************************/}
-             {/* /* START OF MODIFICATION                                              */}
-             {/* /**********************************************************************/}
-             {/* Undo/Redo Button Area - Placed above SearchBar */}
-             <Box sx={{ mb: 2 }}> {/* Add some margin below the buttons */}
-                {/* Display Undo/Redo specific errors */}
-                {undoRedoError && (
-                    <Alert severity="warning" sx={{ mb: 1 }}>
-                        {undoRedoError}
-                    </Alert>
-                )}
-                <Stack direction="row" spacing={1} justifyContent="flex-start"> {/* Align buttons to start */}
-                    <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<UndoIcon />}
-                        onClick={handleUndoClick}
-                        // Disable button if undoing or redoing is in progress
-                        disabled={isUndoing || isRedoing}
-                        // TODO: Also disable if context indicates undo is not possible
+    return (
+        // Pass AI chat state and toggle function to Layout
+        <Layout isAiChatOpen={isAiChatOpen} toggleAiChat={toggleAiChat}>
+            {/* Main two-column layout using Flexbox */}
+            <Box sx={{
+                display: 'flex',
+                gap: 3,
+                height: 'calc(100vh - 64px - 48px)', // Adjust 64px if TopBar height differs
+                overflow: 'hidden'
+            }}
+            >
+                {/* --- Left Sidebar --- */}
+                <Box
+                    sx={{
+                        width: SIDEBAR_WIDTH,
+                        flexShrink: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        height: '100%',
+                    }}
+                >
+                    {/* Sidebar content wrapper with scroll */}
+                    <Paper
+                        elevation={2}
+                        sx={{
+                            p: 2,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 3,
+                            flexGrow: 1,
+                            overflowY: 'auto',
+                            position: 'relative'
+                        }}
                     >
-                        {/* Show loading text if undoing */}
-                        {isUndoing ? 'Undoing...' : 'Undo'}
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<RedoIcon />}
-                        onClick={handleRedoClick}
-                        // Disable button if undoing or redoing is in progress
-                        disabled={isUndoing || isRedoing}
-                        // TODO: Also disable if context indicates redo is not possible
-                    >
-                        {/* Show loading text if redoing */}
-                        {isRedoing ? 'Redoing...' : 'Redo'}
-                    </Button>
-                </Stack>
-             </Box>
-             {/* /**********************************************************************/}
-             {/* /* END OF MODIFICATION                                                */}
-             {/* /**********************************************************************/}
+                        {/* Undo/Redo/AI Button Area Removed */}
 
-             {/* Search Bar & Custom Event Button Area */}
-             <Box>
-                <SearchBar />
-                {/* Add Button below SearchBar to trigger the custom event dialog */}
-                 <Button
-                    variant="outlined" // Style as desired
-                    startIcon={<AddIcon />} // Optional icon
-                    onClick={handleOpenCustomEventForm} // Call handler to open dialog
-                    fullWidth // Make button span the width
-                    sx={{ mt: 1 }} // Add margin for spacing
-                    // Optionally disable if another schedule operation is loading
-                    // /**********************************************************************/
-                    // /* START OF MODIFICATION                                              */
-                    // /**********************************************************************/
-                    // Disable if adding custom event OR undoing/redoing
-                    disabled={isAddingCustom || isUndoing || isRedoing}
-                    // /**********************************************************************/
-                    // /* END OF MODIFICATION                                                */
-                    // /**********************************************************************/
-                 >
-                    Create Custom Event
-                 </Button>
-             </Box>
+                        {/* Search Bar & Custom Event Button Area */}
+                        <Box>
+                            <SearchBar />
+                            <Button
+                                variant="outlined"
+                                startIcon={<AddIcon />}
+                                onClick={handleOpenCustomEventForm}
+                                fullWidth
+                                sx={{ mt: 1 }}
+                                // Keep disabled logic if needed, ensure state is available
+                                disabled={isAddingCustom /* || isUndoing || isRedoing */}
+                            >
+                                Create Custom Event
+                            </Button>
+                        </Box>
 
-             {/* Schedule Load/Create Controls Area */}
-             {/* This will be potentially overlaid by search results */}
-             {/* flexGrow allows this section to take remaining space if needed, pushing footer down */}
-             <Box sx={{ flexGrow: 1 }}>
-                <ScheduleControlPanel />
-             </Box>
-           </Paper>
-        </Box>
+                        {/* Schedule Load/Create Controls Area */}
+                        <Box sx={{ flexGrow: 1 }}>
+                            <ScheduleControlPanel />
+                        </Box>
+                    </Paper>
+                </Box>
 
-        {/* --- Main Content Area (Schedule View) --- */}
-        <Box
-          sx={{
-            flexGrow: 1, // Takes up remaining horizontal space
-            height: '100%', // Take full height
-            overflow: 'hidden' // Prevent this Box from scrolling
-          }}
-        >
-           {/* Paper provides background. Allow scrolling *within* the schedule paper */}
-           <Paper elevation={2} sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-             {/* Box inside Paper ensures content starts correctly */}
-             <Box sx={{ minHeight: 500 }}> {/* Ensure schedule has min height */}
-               <ScheduleView />
-             </Box>
-           </Paper>
-        </Box>
+                {/* --- Main Content Area (Schedule View) --- */}
+                <Box
+                    sx={{
+                        flexGrow: 1,
+                        height: '100%',
+                        overflow: 'hidden'
+                    }}
+                >
+                    {/* Schedule view wrapper with scroll */}
+                    <Paper elevation={2} sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+                        {/* ScheduleView now contains Undo/Redo/Save */}
+                        <ScheduleView />
+                    </Paper>
+                </Box>
 
-      </Box>
+            </Box> {/* End Main Flex Container */}
 
-      {/* Render the CustomEventForm Dialog */}
-      {/* It's placed outside the main layout flexbox to overlay correctly */}
-      <CustomEventForm
-          open={isCustomEventFormOpen} // Control visibility with state
-          onClose={handleCloseCustomEventForm} // Pass the close handler
-          onSubmit={handleAddCustomEvent} // Pass the submit handler
-          isLoading={isAddingCustom} // Pass the specific loading state from context
-          error={customEventError} // Pass the specific error state from context
-      />
-    </Layout>
-  );
+            {/* Render the CustomEventForm Dialog */}
+            <CustomEventForm
+                open={isCustomEventFormOpen}
+                onClose={handleCloseCustomEventForm}
+                onSubmit={handleAddCustomEvent}
+                isLoading={isAddingCustom}
+                error={customEventError}
+            />
+
+            {/* Render the AI Chat Interface */}
+            <AiChatInterface
+                open={isAiChatOpen}
+                onClose={() => setIsAiChatOpen(false)}
+            />
+        </Layout>
+    );
 }
 
 export default MainPage;
