@@ -26,8 +26,8 @@ export const AuthProvider = ({ children }) => {
         };
         setCurrentUser(userWithEnsuredSchedules);
         // ***** START OF CHANGE *****
-        // Navigate to the editor page after successful login
-        navigate('/editor');
+        // Navigate to the new schedule management page after successful login
+        navigate('/manage-schedules');
         // ***** END OF CHANGE *****
     } else {
         console.error("AuthContext: Invalid user data received for login.", userData);
@@ -52,14 +52,11 @@ export const AuthProvider = ({ children }) => {
         // Always clear user state and navigate regardless of backend success/failure
         setCurrentUser(null);
         setLoading(false);
-        // ***** START OF CHANGE *****
         // Navigate to the login page (now the root '/') after logout
         navigate('/');
-        // ***** END OF CHANGE *****
     }
   };
 
-  // ***** START OF MODIFICATION *****
   /**
    * Updates the current user state with new data.
    * Used by other contexts (like ScheduleContext) when backend actions
@@ -79,7 +76,6 @@ export const AuthProvider = ({ children }) => {
           console.warn("AuthContext: Attempted to update user with invalid data.", updatedUserData);
       }
   };
-  // ***** END OF MODIFICATION *****
 
   // Value provided by the context
   const value = {
@@ -87,9 +83,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     logout,
-    // ***** START OF MODIFICATION *****
     updateCurrentUser, // Expose the new function
-    // ***** END OF MODIFICATION *****
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
