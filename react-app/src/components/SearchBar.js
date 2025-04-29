@@ -12,34 +12,95 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
+// Keep AddCircleOutlineIcon for now as fallback/alternative to DnD
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import FilterListIcon from '@mui/icons-material/FilterList'; // Icon for filter button
-import Badge from '@mui/material/Badge'; // To show if filters are active
+import FilterListIcon from '@mui/icons-material/FilterList';
+import Badge from '@mui/material/Badge';
 import Paper from '@mui/material/Paper';
 import Popper from '@mui/material/Popper';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 import Fade from '@mui/material/Fade';
+import Tooltip from '@mui/material/Tooltip'; // Added for Add button tooltip
 
-// Import the useSchedule hook
-// Assuming you have a ScheduleContext set up like in previous examples
-// If not, you might need to pass addCourse down as a prop or adjust this.
+// --- React DnD Imports ---
+import { useDrag } from 'react-dnd';
+import { getEmptyImage } from 'react-dnd-html5-backend'; // Import helper to hide default preview
+// --- End React DnD Imports ---
+import { ItemTypes } from '../dndConstants'; // Import from shared constants
+
+
 import { useSchedule } from '../context/ScheduleContext';
-// Import the new Filters component
-import SearchFilters from './SearchFilters'; // Assuming SearchFilters.js is in the same directory
+import SearchFilters from './SearchFilters';
+
+// --- Draggable Course Item Component ---
+const DraggableCourseItem = ({ course, handleAddCourseClick, isScheduleLoading }) => {
+  // Get dragPreview from useDrag
+  const [{ isDragging }, drag, dragPreview] = useDrag(() => ({ // <-- Add dragPreview here
+    type: ItemTypes.COURSE,
+    item: { course },
+    collect: (monitor) => ({
+      isDragging: !!monitor.isDragging(),
+    }),
+  }), [course]);
+
+  // --- Add useEffect to hide default preview ---
+  useEffect(() => {
+    // Connect an empty image to the drag preview
+    // This prevents the browser from generating its own snapshot
+    dragPreview(getEmptyImage(), { captureDraggingState: true });
+  }, [dragPreview]); // Dependency array ensures this runs once on mount
+  // --- End useEffect ---
+
+
+  return (
+    <ListItem
+      ref={drag} // Apply the drag source ref here
+      // ... (rest of ListItem props and sx remain the same) ...
+      disablePadding
+      divider
+      sx={{
+        cursor: 'move',
+        opacity: isDragging ? 0.5 : 1,
+        '&:hover': { bgcolor: 'action.hover' },
+      }}
+      secondaryAction={
+         <Tooltip title={`Add ${course.subject} ${course.courseCode} to schedule`}>
+             <span>
+               <IconButton
+                 edge="end"
+                 aria-label={`add ${course.name}`}
+                 onClick={() => handleAddCourseClick(course)}
+                 disabled={isScheduleLoading}
+                 sx={{ mr: 1 }}
+               >
+                 <AddCircleOutlineIcon />
+               </IconButton>
+              </span>
+         </Tooltip>
+      }
+    >
+      {/* ... (ListItemButton and ListItemText remain the same) ... */}
+      <ListItemButton dense sx={{ pl: 2, pr: 1, py: 0.5 }}>
+         <ListItemText
+           primary={`${course.subject} ${course.courseCode} - ${course.name}`}
+           secondary={`Sec: ${course.section || 'N/A'} | Prof: ${course.professor?.name || 'N/A'} | Days: ${course.days || 'N/A'} | Loc: ${course.location || 'N/A'} | Time: ${course.time?.startTime ? `${formatTime(course.time.startTime)} - ${formatTime(course.time.endTime)}` : 'N/A'}`}
+           secondaryTypographyProps={{ sx: { fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }}
+           primaryTypographyProps={{ sx: { fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 } }}
+         />
+       </ListItemButton>
+    </ListItem>
+  );
+};
+
 
 /**
- * SearchBar Component (Updated)
- * Provides course search input, filter options, and displays results in an overlay Popper.
+ * SearchBar Component (Updated for Draggable Items)
  */
 const SearchBar = () => {
-  // Assuming useSchedule hook provides these values
-  // Provide default fallback functions/values if context might not be ready
   const scheduleContext = useSchedule();
-  // Use default functions if context is not available to prevent errors
   const addCourse = scheduleContext?.addCourse || (() => console.error("addCourse function not available from context."));
   const isScheduleLoading = scheduleContext?.isLoading || false;
   const scheduleError = scheduleContext?.error || null;
-
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -47,27 +108,19 @@ const SearchBar = () => {
   const [searchError, setSearchError] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
 
-  // --- Filter State ---
-  const [filters, setFilters] = useState({
-      startTime: '', // e.g., "09:00"
-      endTime: '',   // e.g., "17:30"
-      days: [],      // e.g., ['M', 'W', 'F']
-  });
+  const [filters, setFilters] = useState({ startTime: '', endTime: '', days: [] });
   const [activeFilterCount, setActiveFilterCount] = useState(0);
 
-  // --- Popper State (Results) ---
   const [openResults, setOpenResults] = useState(false);
-  const searchAnchorElRef = useRef(null); // Anchor for results popper (TextField's wrapper div)
+  const searchAnchorElRef = useRef(null);
   const [resultsPopperWidth, setResultsPopperWidth] = useState(0);
 
-  // --- Popper State (Filters) ---
   const [openFilters, setOpenFilters] = useState(false);
-  const filterAnchorElRef = useRef(null); // Anchor for filter popper (Filter Button's container)
+  const filterAnchorElRef = useRef(null);
 
-  // --- Update Popper Widths ---
   useEffect(() => {
+    // ... (popper width logic remains the same) ...
     const updateResultsWidth = () => {
-      // Anchor is the div wrapping the TextField now
       if (searchAnchorElRef.current) setResultsPopperWidth(searchAnchorElRef.current.clientWidth);
     };
     if (openResults) {
@@ -79,143 +132,116 @@ const SearchBar = () => {
     return () => window.removeEventListener('resize', updateResultsWidth);
   }, [openResults]);
 
-  // --- Calculate Active Filter Count ---
   useEffect(() => {
+    // ... (active filter count logic remains the same) ...
       let count = 0;
-      // Check if time range is partially or fully set
       if (filters.startTime || filters.endTime) count++;
-      // Check if any days are selected
-      if (filters.days && filters.days.length > 0) count++;
+      if (filters.days && Array.isArray(filters.days) && filters.days.length > 0) count++;
       setActiveFilterCount(count);
   }, [filters]);
 
-  // --- Event Handlers ---
 
   const handleInputChange = (event) => {
+    // ... (logic remains the same) ...
     setQuery(event.target.value);
     if (event.target.value === '') {
        setOpenResults(false); setResults([]); setHasSearched(false); setSearchError(null);
     }
   };
 
-  // --- Modified Search Handler ---
   const handleSearch = useCallback(async (applyFilters = false) => {
-    // Close filter popper if applying filters from it
-    if (applyFilters) {
-        setOpenFilters(false);
-    }
-
-    // Basic query validation
+    // ... (API call logic remains the same) ...
+    if (applyFilters) setOpenFilters(false);
     if (!query.trim()) {
       setResults([]); setSearchError(null); setHasSearched(true); setOpenResults(false);
       return;
     }
+    setIsSearchLoading(true); setSearchError(null); setResults([]); setHasSearched(true); setOpenResults(true);
 
-    setIsSearchLoading(true);
-    setSearchError(null);
-    setResults([]);
-    setHasSearched(true);
-    setOpenResults(true); // Open results popper
-
-    // --- Build API URL with Filters ---
-    let apiUrl = `http://localhost:7070/api/courses/search?query=${encodeURIComponent(query.trim())}`;
-    // Add filters only if they have valid values
+    let apiUrl = `/api/courses/search?query=${encodeURIComponent(query.trim())}`;
     if (filters.startTime) apiUrl += `&startTime=${encodeURIComponent(filters.startTime)}`;
     if (filters.endTime) apiUrl += `&endTime=${encodeURIComponent(filters.endTime)}`;
-    // Ensure filters.days is an array before joining
     if (filters.days && Array.isArray(filters.days) && filters.days.length > 0) {
-        apiUrl += `&days=${encodeURIComponent(filters.days.join(''))}`; // Join days array into string "MWF"
+        apiUrl += `&days=${encodeURIComponent(filters.days.join(''))}`;
     }
-
-    console.log("Searching with URL:", apiUrl); // Log the URL for debugging
-
+    console.log("Searching with URL:", apiUrl);
     try {
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: `HTTP error! Status: ${response.status}` }));
-        throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+        throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
       }
       const data = await response.json();
       setResults(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Search API call failed:", err);
       setSearchError(err.message || "Failed to fetch search results.");
-      setResults([]);
-      setOpenResults(true); // Keep open to show error
+      setResults([]); setOpenResults(true);
     } finally {
       setIsSearchLoading(false);
     }
-  // Only include query and filters in dependencies
-  }, [query, filters]); // Include filters here so search uses the latest values
+  }, [query, filters]);
 
   const handleKeyPress = useCallback((event) => {
+    // ... (logic remains the same) ...
     if (event.key === 'Enter') {
-      handleSearch(); // Trigger search without explicitly applying filters from the filter popper
+      handleSearch();
     }
   }, [handleSearch]);
 
   const handleAddCourseClick = (course) => {
+    // ... (logic remains the same, still used by the add button) ...
     addCourse(course);
-    setOpenResults(false);
+    // Maybe close results after adding?
+    // setOpenResults(false);
   };
 
-  // --- Filter Popper Control ---
   const handleFilterButtonClick = () => {
-    setOpenFilters((prev) => !prev); // Toggle filter popper
-    setOpenResults(false); // Close results when opening filters
+    // ... (logic remains the same) ...
+     setOpenFilters((prev) => !prev);
+     setOpenResults(false);
   };
 
   const handleFilterChange = (newFilters) => {
-      setFilters(newFilters);
+    // ... (logic remains the same) ...
+    setFilters(newFilters);
   };
 
   const handleApplyFilters = () => {
-      handleSearch(true); // Pass true to indicate filters are being applied
+    // ... (logic remains the same) ...
+      handleSearch(true);
   };
 
   const handleResetFilters = () => {
+    // ... (logic remains the same) ...
       setFilters({ startTime: '', endTime: '', days: [] });
-      // Optionally trigger a search immediately after resetting?
-      // handleSearch(true); // Or maybe just close the popper
       setOpenFilters(false);
   };
 
-  // --- Click Away Handlers ---
-  // Combined handler to close either popper if clicking outside relevant areas
   const handleClickAway = (event) => {
-      // Close results if click is outside search input and filter button
-      if (openResults &&
-          searchAnchorElRef.current && !searchAnchorElRef.current.contains(event.target) &&
-          filterAnchorElRef.current && !filterAnchorElRef.current.contains(event.target))
-      {
-         // We also need to ensure the click wasn't inside the results popper itself
-         // This check is complex without direct popper ref. We add stopPropagation
-         // to the Paper components inside the Poppers instead.
-         setOpenResults(false);
-      }
-      // Close filters if click is outside filter button
-       if (openFilters &&
-           filterAnchorElRef.current && !filterAnchorElRef.current.contains(event.target)) {
-         // Same complexity applies for checking clicks inside the filter popper
-         setOpenFilters(false);
-      }
+    // ... (logic remains the same) ...
+     if (openResults &&
+         searchAnchorElRef.current && !searchAnchorElRef.current.contains(event.target) &&
+         filterAnchorElRef.current && !filterAnchorElRef.current.contains(event.target))
+     {
+        setOpenResults(false);
+     }
+      if (openFilters &&
+          filterAnchorElRef.current && !filterAnchorElRef.current.contains(event.target)) {
+        setOpenFilters(false);
+     }
   };
-
 
   const overallLoading = isSearchLoading || isScheduleLoading;
 
   return (
-    // Use a single ClickAwayListener for the whole search area
     <ClickAwayListener onClickAway={handleClickAway}>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, position: 'relative' }}>
-        <Typography variant="h6" component="div">
-          Course Search
-        </Typography>
-
+        <Typography variant="h6" component="div"> Course Search </Typography>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-            {/* Wrap TextField in a div to attach the ref for Popper anchor */}
              <div style={{ flexGrow: 1 }} ref={searchAnchorElRef}>
                 <TextField
+                    // ... (TextField props remain the same) ...
                     label="Search Courses (e.g., COMP 101)"
                     variant="outlined"
                     fullWidth
@@ -223,13 +249,12 @@ const SearchBar = () => {
                     onChange={handleInputChange}
                     onKeyPress={handleKeyPress}
                     disabled={overallLoading}
-                    // inputRef is for the input element itself, not the wrapper
                     InputProps={{
                         endAdornment: (
                         <InputAdornment position="end">
                             <IconButton
                             aria-label="search courses"
-                            onClick={() => handleSearch()} // Search without explicit filter apply
+                            onClick={() => handleSearch()}
                             edge="end"
                             disabled={overallLoading || !query.trim()}
                             >
@@ -240,16 +265,13 @@ const SearchBar = () => {
                     }}
                 />
              </div>
-
-            {/* Filter Button - Anchor for filter popper */}
-            {/* This Box acts as the anchor and wrapper for the listener */}
             <Box ref={filterAnchorElRef}>
                 <IconButton
-                    aria-label="show filters"
+                    // ... (Filter IconButton props remain the same) ...
+                     aria-label="show filters"
                     onClick={handleFilterButtonClick}
-                    // ref is now on the Box wrapper
-                    color={openFilters ? "primary" : "default"} // Indicate if open
-                    sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: '9px' }} // Match TextField height roughly
+                    color={openFilters ? "primary" : "default"}
+                    sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: '9px' }}
                 >
                     <Badge badgeContent={activeFilterCount} color="secondary">
                         <FilterListIcon />
@@ -258,45 +280,38 @@ const SearchBar = () => {
             </Box>
         </Box>
 
-
-        {/* --- Results Popper --- */}
+        {/* Results Popper */}
         <Popper
           open={openResults}
-          anchorEl={searchAnchorElRef.current} // Use the div wrapper ref
+          anchorEl={searchAnchorElRef.current}
+          // ... (Popper props remain the same) ...
           placement="bottom-start"
           transition
-          disablePortal // Keep Popper within the sidebar's stacking context if needed
+          disablePortal
           modifiers={[ { name: 'offset', options: { offset: [0, 4] } }, { name: 'preventOverflow', options: { boundary: 'clippingParents' } }]}
-          style={{ zIndex: 1200 }} // Ensure Popper is above other elements
+          style={{ zIndex: 1200 }}
           sx={{ width: resultsPopperWidth > 0 ? `${resultsPopperWidth}px` : 'auto' }}
         >
           {({ TransitionProps }) => (
             <Fade {...TransitionProps} timeout={350}>
-              {/* Added onClick={(e) => e.stopPropagation()} to Paper to prevent ClickAwayListener from closing when clicking inside */}
               <Paper elevation={4} sx={{ mt: 0.5 }} onClick={(e) => e.stopPropagation()}>
+                {/* --- Render Loading/Error/Empty states --- */}
                 {isSearchLoading && <CircularProgress sx={{ display: 'block', margin: '20px auto' }} />}
                 {searchError && !isSearchLoading && <Alert severity="error" sx={{ m: 1, borderRadius: 0 }}>Search Error: {searchError}</Alert>}
                 {scheduleError && !isSearchLoading && <Alert severity="warning" sx={{ m: 1, borderRadius: 0 }}>Schedule Error: {scheduleError}</Alert>}
-                {hasSearched && !isSearchLoading && !searchError && results.length === 0 && <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>No courses found matching your query.</Typography>}
+                {hasSearched && !isSearchLoading && !searchError && results.length === 0 && <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>No courses found.</Typography>}
+
+                {/* --- Render Draggable Results List --- */}
                 {results.length > 0 && !isSearchLoading && (
                   <List dense sx={{ maxHeight: 300, overflow: 'auto', p: 0 }}>
                     {results.map((course) => (
-                      <ListItem key={`${course.subject}-${course.courseCode}-${course.section}`} disablePadding divider
-                        secondaryAction={
-                          <IconButton edge="end" aria-label={`add ${course.name}`} onClick={() => handleAddCourseClick(course)} title={`Add ${course.subject} ${course.courseCode} to schedule`} disabled={isScheduleLoading} sx={{ mr: 1 }}>
-                            <AddCircleOutlineIcon />
-                          </IconButton>
-                        }
-                      >
-                        <ListItemButton dense sx={{ pl: 2, pr: 1 }}>
-                          <ListItemText
-                            primary={`${course.subject} ${course.courseCode} - ${course.name}`}
-                            secondary={`Sec: ${course.section || 'N/A'} | Prof: ${course.professor?.name || 'N/A'} | Days: ${course.days || 'N/A'} | Loc: ${course.location || 'N/A'} | Time: ${course.time?.startTime ? `${formatTime(course.time.startTime)} - ${formatTime(course.time.endTime)}` : 'N/A'}`}
-                            secondaryTypographyProps={{ sx: { fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }}
-                            primaryTypographyProps={{ sx: { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }}
-                          />
-                        </ListItemButton>
-                      </ListItem>
+                      // Use the new DraggableCourseItem component
+                      <DraggableCourseItem
+                        key={`${course.subject}-${course.courseCode}-${course.section}`}
+                        course={course}
+                        handleAddCourseClick={handleAddCourseClick} // Pass handler for the button
+                        isScheduleLoading={isScheduleLoading}
+                      />
                     ))}
                   </List>
                 )}
@@ -305,19 +320,19 @@ const SearchBar = () => {
           )}
         </Popper>
 
-        {/* --- Filter Popper --- */}
+        {/* Filter Popper */}
          <Popper
           open={openFilters}
-          anchorEl={filterAnchorElRef.current} // Anchor to the filter button's container
-          placement="bottom-end" // Position below and to the right
+          anchorEl={filterAnchorElRef.current}
+          // ... (Filter Popper props remain the same) ...
+          placement="bottom-end"
           transition
-          disablePortal // Keep Popper within the sidebar's stacking context
-          modifiers={[ { name: 'offset', options: { offset: [0, 4] } } ]} // Add small vertical offset
-          style={{ zIndex: 1250 }} // Ensure filters are above results if they overlap
+          disablePortal
+          modifiers={[ { name: 'offset', options: { offset: [0, 4] } } ]}
+          style={{ zIndex: 1250 }}
         >
           {({ TransitionProps }) => (
             <Fade {...TransitionProps} timeout={350}>
-              {/* Added onClick={(e) => e.stopPropagation()} to Paper */}
               <Paper elevation={6} sx={{ mt: 0.5 }} onClick={(e) => e.stopPropagation()}>
                  <SearchFilters
                     filters={filters}
@@ -331,12 +346,13 @@ const SearchBar = () => {
         </Popper>
 
       </Box>
-    </ClickAwayListener> // Close outer ClickAwayListener
+    </ClickAwayListener>
   );
 };
 
 // Helper to format time (ensure this is consistent)
 const formatTime = (seconds) => {
+    // ... (formatTime logic remains the same) ...
     if (typeof seconds !== 'number' || isNaN(seconds)) return 'N/A';
     const totalMinutes = Math.floor(seconds / 60);
     const hours24 = Math.floor(totalMinutes / 60);

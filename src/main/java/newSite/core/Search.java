@@ -2,185 +2,212 @@ package newSite.core;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+// Import LevenshteinDistance from Apache Commons Text
+import org.apache.commons.text.similarity.LevenshteinDistance;
 
 
 public class Search {
     public Filter filter;
-    //public Set<newSite.core.Course> resultsList;
     public Set<Course> filteredResultsList;
-    //private Set<newSite.core.Professor> professors;
-
     public Set<Course> courseDatabase;
 
+    // Levenshtein distance threshold (adjust as needed)
+    private static final int FUZZY_THRESHOLD_SHORT = 1; // Max edits for short tokens/words (e.g., <= 4 chars)
+    private static final int FUZZY_THRESHOLD_LONG = 2;  // Max edits for longer tokens/words
+
+    // Instance of LevenshteinDistance
+    private static final LevenshteinDistance levenshteinDistance = new LevenshteinDistance();
+
+
     public Search(){
-        //this.resultsList = new HashSet<>();
         this.filteredResultsList = new HashSet<>();
         this.courseDatabase = new HashSet<>();
+        if (this.filter == null) {
+            this.filter = new Filter();
+        }
     }
 
 
     /**
-     * Searches for courses that match the user's query.
+     * Searches for courses that match the user's query using keyword and fuzzy matching.
      *
      * @param query The search query entered by the user.
-     * @return The set of courses that match the query.
+     * @return The set of courses that match the query and active filters.
      */
     public Set<Course> searchQuery(String query) {
-        // Step 1: Parse the query into tokens
-        String[] tokens = query.split("\\s+"); // Split by spaces
+        if (courseDatabase == null || courseDatabase.isEmpty()) {
+            System.err.println("Search warning: courseDatabase is null or empty.");
+            return new HashSet<>();
+        }
+        if (query == null || query.trim().isEmpty()) {
+            return filterCourses(new HashSet<>(courseDatabase));
+        }
 
-        // Step 2: Initialize the results list with all courses
-        filteredResultsList = new HashSet<>(courseDatabase);
+        String[] tokens = query.trim().toLowerCase().split("\\s+");
+        Set<Course> currentResults = new HashSet<>(courseDatabase);
 
-        // Step 3: Iterate over each token and filter the results
         for (String token : tokens) {
-            Set<Course> matchingCourses = new HashSet<>();
+            if (token.isEmpty()) continue;
 
-            for (Course course : filteredResultsList) {
-                // Check if the course matches the token in any field
-                if (matchesToken(course, token)) {
-                    // should display is TRUE if the course matches all filters that are set. it ignores null filters.
-                    boolean timeCheck = false; //set true if it matches a filter
-                    boolean dayCheck = false; //set true if it matches a filter
+            final String currentToken = token;
+            currentResults = currentResults.stream()
+                    .filter(course -> matchesTokenFuzzy(course, currentToken))
+                    .collect(Collectors.toSet());
 
-                    // checking time filter
-                    if (filter != null && filter.timeRange != null) { // if a time range is specified
-                        //if the course's time range is within the filter's time range, return true
-                        timeCheck = isWithinTimeRange(course);
-                        //otherwise don't add the course (return false)
-                    } else { //if no time range specified
-                        timeCheck = true;
-                    }
-
-                    //checking day filter
-                    // if a day range is specified that isn't empty
-                    if (filter != null && filter.dayRange != null && !filter.dayRange.isEmpty()) {
-                        //if the course's days are within the filter's day range, return true
-                        dayCheck = isWithinDayRange(course);
-                        //otherwise don't add the course (return false)
-
-                    } else { //if no day range specified
-                        dayCheck = true;
-                    }
-
-                    if (dayCheck && timeCheck) {
-                        matchingCourses.add(course);
-                    }
-                }
-            }
-
-            // Update the filtered results list
-            filteredResultsList = matchingCourses;
-
-            // If no matches are found, stop searching further
-            if (filteredResultsList.isEmpty()) {
+            if (currentResults.isEmpty()) {
                 break;
             }
         }
-        
-        return filteredResultsList;
+
+        this.filteredResultsList = filterCourses(currentResults);
+        return this.filteredResultsList;
+    }
+
+    /**
+     * Filters a set of courses based on the active time and day filters.
+     * @param coursesToFilter The set of courses to filter.
+     * @return A new set containing only the courses that match the filters.
+     */
+    private Set<Course> filterCourses(Set<Course> coursesToFilter) {
+        if (coursesToFilter == null || coursesToFilter.isEmpty()) {
+            return new HashSet<>();
+        }
+        if (this.filter == null) {
+            System.err.println("Search warning: Filter object is null in filterCourses.");
+            return coursesToFilter;
+        }
+
+        Stream<Course> courseStream = coursesToFilter.stream();
+
+        // Apply Time Filter
+        if (filter.timeRange != null) {
+            courseStream = courseStream.filter(this::isWithinTimeRange);
+        }
+
+        // Apply Day Filter
+        if (filter.dayRange != null && !filter.dayRange.isEmpty()) {
+            courseStream = courseStream.filter(this::isWithinDayRange);
+        }
+
+        return courseStream.collect(Collectors.toSet());
     }
 
 
     /**
-     * Display the search results to the console.
+     * Checks if a course matches the given token using fuzzy matching (Levenshtein distance).
+     * Now checks course name and professor name word by word.
      *
-     * @param query The original search query.
-     * @param results The set of courses that match the query.
+     * @param course The course to check.
+     * @param token  The lowercase search token.
+     * @return True if the course matches the token within the threshold, false otherwise.
      */
-    public void displaySearchResults(String query, Set<Course> results) {
-        if (results.isEmpty()) {
-            System.out.println("No courses found matching: " + query);
-        } else {
-            System.out.println("Courses matching '" + query + "':");
-            for (Course course : results) {
-                System.out.println(course + "\n");
+    private boolean matchesTokenFuzzy(Course course, String token) {
+        if (course == null || token == null || token.isEmpty()) {
+            return false;
+        }
+
+        // 1. Check Course Code (Exact Match Only)
+        if (String.valueOf(course.courseCode).equals(token)) {
+            return true;
+        }
+
+        // 2. Check other fields using Levenshtein distance
+        int baseThreshold = (token.length() < 5) ? FUZZY_THRESHOLD_SHORT : FUZZY_THRESHOLD_LONG;
+
+        // Check Subject (allow fuzzy match)
+        if (course.subject != null && levenshteinDistance.apply(token, course.subject.toLowerCase()) <= baseThreshold) {
+            return true;
+        }
+
+        // Check Course Name WORD BY WORD
+        if (course.name != null) {
+            // Split by space or common punctuation that might separate words in titles
+            String[] nameWords = course.name.toLowerCase().split("[\\s\\p{Punct}]+");
+            for (String word : nameWords) {
+                if (word.isEmpty()) continue;
+                int wordThreshold = (Math.min(token.length(), word.length()) < 5) ? FUZZY_THRESHOLD_SHORT : FUZZY_THRESHOLD_LONG;
+                if (levenshteinDistance.apply(token, word) <= wordThreshold) {
+                    return true; // Match found if any word is close enough
+                }
             }
         }
+
+        // ***** START OF CHANGE: Check Professor Name PART BY PART *****
+        if (course.professor != null && course.professor.name != null) {
+            // Split professor name by common delimiters (space, comma, period)
+            // This handles "Lastname, Firstname M." and "Firstname M. Lastname" etc.
+            String[] nameParts = course.professor.name.toLowerCase().split("[\\s,.]+");
+            for (String part : nameParts) {
+                if (part.isEmpty()) continue;
+                // Determine threshold based on the shorter of token or name part
+                int partThreshold = (Math.min(token.length(), part.length()) < 5) ? FUZZY_THRESHOLD_SHORT : FUZZY_THRESHOLD_LONG;
+                if (levenshteinDistance.apply(token, part) <= partThreshold) {
+                    return true; // Match found if token is close to *any part* of the name
+                }
+            }
+        }
+        // ***** END OF CHANGE *****
+
+        // Simple contains check for location/semester
+        if (course.location != null && course.location.toLowerCase().contains(token)) {
+            return true;
+        }
+        if (course.semester != null && course.semester.toLowerCase().contains(token)) {
+            return true;
+        }
+
+
+        return false; // No match found
     }
 
-
-    /**
-     * Searches for courses and displays results.
-     * 
-     * @param query The search query entered by the user.
-     */
+    // --- Stub Methods ---
+    public void displaySearchResults(String query, Set<Course> results) {
+        System.out.println("STUB METHOD CALLED: displaySearchResults for query: \"" + query + "\" with " + (results != null ? results.size() : 0) + " results.");
+    }
     public void SearchQ(String query) {
-        Set<Course> results = searchQuery(query);
-        displaySearchResults(query, results);
+        System.out.println("STUB METHOD CALLED: SearchQ for query: \"" + query + "\"");
     }
 
-    /**
-     * Checks if a course matches the given token in any field.
-     *
-     * @param course The course to check.
-     * @param token  The search token.
-     * @return True if the course matches the token, false otherwise.
-     */
-    private boolean matchesToken(Course course, String token) {
-        String tokenLower = token.toLowerCase();
-        return String.valueOf(course.courseCode).equals(token) || // Keep exact match for course code
-                course.name.toLowerCase().contains(tokenLower) ||  // Add this line
-                course.subject.toLowerCase().contains(tokenLower) ||
-                course.professor.name.toLowerCase().contains(tokenLower) ||
-                course.semester.toLowerCase().contains(tokenLower) ||
-                course.location.toLowerCase().contains(tokenLower);
-    }
-
-
-    /**
-     * Checks if a course is within the time range specified by the filter.
-     * @param course The course to check.
-     * @return True if the course is within the time range, false otherwise.
-     */
+    // --- Filter Methods ---
     private boolean isWithinTimeRange(Course course) {
-        return (course.time.startTime >= filter.timeRange.startTime && course.time.endTime <= filter.timeRange.endTime);
+        return course != null && course.time != null && filter.timeRange != null &&
+                (course.time.startTime >= filter.timeRange.startTime && course.time.endTime <= filter.timeRange.endTime);
     }
-
-
-    /**
-     * Checks if a course is within the day range specified by the filter.
-     * @param course The course to check.
-     * @return True if the course is within the day range, false otherwise.
-     */
     private boolean isWithinDayRange(Course course) {
-        // for each day in the course's days
-        for (int i = 0; i < course.days.length(); i++) {
-            //if it is in the filter's day range
-            if (filter.dayRange.contains(course.days.substring(i, i + 1))) {
-                //the course should be displayed
+        if (course == null || course.days == null || course.days.isEmpty() || filter.dayRange == null || filter.dayRange.isEmpty()) {
+            return false;
+        }
+        for (char courseDay : course.days.toCharArray()) {
+            if (filter.dayRange.indexOf(courseDay) != -1) {
                 return true;
             }
         }
-        //otherwise it should not be displayed
         return false;
     }
-
-
-    /**
-     * Modify the time filter to only include the specified time range.
-     * @param ts The time range to include in the filter.
-     */
     public void ModifyTimeFilter(TimeSlot ts) {
+        if (filter == null) filter = new Filter();
         filter.timeRange = ts;
     }
-
-
-    /**
-     * Modify the day filter to only include the specified days. Automatically removes all other characters than MTWRF
-     * @param days The days to include in the filter.
-     */
     public void ModifyDayFilter(String days) {
-        // remove all characters from "days" that are not 'M', 'T', 'W', 'R', 'F'
-        // and set the dayRange to the result
-        filter.dayRange = days.replaceAll("[^MTWRF]", "");
+        if (filter == null) filter = new Filter();
+        if (days != null) {
+            filter.dayRange = days.replaceAll("[^MTWRF]", "");
+            if (filter.dayRange.isEmpty()) {
+                filter.dayRange = null;
+            }
+        } else {
+            filter.dayRange = null;
+        }
     }
-
     public void ResetFilters() {
-        filter.timeRange = null;
-        filter.dayRange = null;
-        //maybe more needed here
+        if (filter != null) {
+            filter.timeRange = null;
+            filter.dayRange = null;
+        } else {
+            filter = new Filter();
+        }
     }
-
-
 }
