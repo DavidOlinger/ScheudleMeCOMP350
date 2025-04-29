@@ -3,45 +3,66 @@ import React from 'react';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
-// Removed Button import as we only use IconButton now for user actions
 import Box from '@mui/material/Box';
-import IconButton from '@mui/material/IconButton'; // Keep IconButton
+import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { Link as RouterLink } from 'react-router-dom'; // Keep RouterLink for title and profile
-
-// Import the useAuth hook
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined'; // Icon for title
+import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '@mui/material/styles'; // Import useTheme
 
 /**
- * TopBar Component (Revised Again)
- * Renders the main application navigation bar with a blue background.
- * - AI Chat, Profile, and Logout buttons are now IconButtons with Tooltips.
- * - Profile button uses the exact code snippet provided by the user, linking
- * internally to the React '/profile' route via RouterLink.
+ * TopBar Component (Visually Enhanced)
+ * Renders the main application navigation bar with subtle gradient and icon.
  */
 const TopBar = ({ toggleAiChat, isAiChatOpen }) => {
     const { currentUser, loading: authLoading, logout } = useAuth();
+    const location = useLocation();
+    const theme = useTheme(); // Access theme
+
+    // Hide AI button on manage page
+    const showAiButton = location.pathname !== '/manage-schedules';
 
     const handleLogout = () => {
-        console.log("Logout button clicked");
         logout();
     };
 
     return (
-        <AppBar position="static" color="primary">
+        // Apply gradient background using sx prop
+        <AppBar
+            position="static"
+            elevation={2} // Subtle shadow
+            sx={{
+                // Subtle gradient using theme colors
+                background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.dark} 90%)`,
+                // Or a simpler approach if gradient is too much:
+                // bgcolor: 'primary.main'
+            }}
+        >
             <Toolbar variant="dense">
-                {/* Application Title - Link to internal editor page */}
-                <Typography variant="h6" component="div" sx={{ fontWeight: 'medium' }}>
-                    <RouterLink to="/editor" style={{ textDecoration: 'none', color: 'inherit' }}>
+                {/* Application Title - Link to the new schedule management page */}
+                <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+                     <CalendarMonthOutlinedIcon sx={{ mr: 1.5, color: 'primary.contrastText' }} /> {/* Added Icon */}
+                    <Typography
+                        variant="h6"
+                        component={RouterLink} // Make Typography itself a link
+                        to="/manage-schedules"
+                        sx={{
+                            fontWeight: 600, // Refined font weight
+                            color: 'inherit', // Inherit color from AppBar
+                            textDecoration: 'none', // Remove underline
+                            '&:hover': {
+                                // Optional: subtle hover effect
+                                // opacity: 0.9,
+                            }
+                        }}
+                    >
                         ScheduleMe
-                    </RouterLink>
-                </Typography>
-
-                {/* Spacer */}
-                <Box sx={{ flexGrow: 1 }} />
+                    </Typography>
+                </Box>
 
                 {/* User Info and Actions */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -49,45 +70,43 @@ const TopBar = ({ toggleAiChat, isAiChatOpen }) => {
 
                     {currentUser ? (
                         <>
-                            {/* AI Chat Button - IconButton */}
-                            <Tooltip title="AI Assistant">
-                                <IconButton
-                                    color="inherit"
-                                    onClick={toggleAiChat}
-                                    sx={{
-                                        bgcolor: isAiChatOpen ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                                        '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' }
-                                    }}
-                                >
-                                    <SmartToyOutlinedIcon />
-                                </IconButton>
-                            </Tooltip>
+                            {/* Conditionally render AI Chat Button */}
+                            {showAiButton && (
+                                <Tooltip title="AI Assistant">
+                                    <IconButton
+                                        color="inherit"
+                                        onClick={toggleAiChat}
+                                        sx={{
+                                            bgcolor: isAiChatOpen ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                                            transition: 'background-color 0.2s ease', // Smooth transition
+                                            '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' }
+                                        }}
+                                    >
+                                        <SmartToyOutlinedIcon />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
 
-                            {/* Profile Button - Using user's exact snippet, adapted for IconButton */}
+                            {/* Profile Button */}
                             <Tooltip title="View Profile">
                                 <IconButton
                                     color="inherit"
-                                    component={RouterLink} // Use RouterLink for navigation
-                                    to="/profile"         // Link to the internal profile route
-                                    sx={{
-                                        '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' } // Hover effect
-                                        // Removed mr: 1 from original snippet as gap is handled by parent Box
-                                    }}
+                                    component={RouterLink}
+                                    to="/profile"
+                                    sx={{ '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' }, transition: 'background-color 0.2s ease' }}
                                 >
-                                    <AccountCircleOutlinedIcon /> {/* Display only the icon */}
+                                    <AccountCircleOutlinedIcon />
                                 </IconButton>
                             </Tooltip>
 
-                            {/* Logout Button - IconButton */}
+                            {/* Logout Button */}
                             <Tooltip title="Logout">
                                  <IconButton
                                     color="inherit"
                                     onClick={handleLogout}
-                                    sx={{
-                                        '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' }
-                                    }}
+                                    sx={{ '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' }, transition: 'background-color 0.2s ease' }}
                                 >
-                                    <LogoutIcon /> {/* Display only the icon */}
+                                    <LogoutIcon />
                                 </IconButton>
                             </Tooltip>
                         </>

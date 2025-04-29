@@ -12,30 +12,29 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
-// Keep AddCircleOutlineIcon for now as fallback/alternative to DnD
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import Badge from '@mui/material/Badge';
 import Paper from '@mui/material/Paper';
-import Popper from '@mui/material/Popper';
-import ClickAwayListener from '@mui/material/ClickAwayListener';
+import Popper from '@mui/material/Popper'; // Keep Popper for Filters
+import ClickAwayListener from '@mui/material/ClickAwayListener'; // Keep for Filters
 import Fade from '@mui/material/Fade';
-import Tooltip from '@mui/material/Tooltip'; // Added for Add button tooltip
+import Tooltip from '@mui/material/Tooltip';
+import Divider from '@mui/material/Divider';
 
 // --- React DnD Imports ---
 import { useDrag } from 'react-dnd';
-import { getEmptyImage } from 'react-dnd-html5-backend'; // Import helper to hide default preview
-// --- End React DnD Imports ---
-import { ItemTypes } from '../dndConstants'; // Import from shared constants
+import { getEmptyImage } from 'react-dnd-html5-backend';
+import { ItemTypes } from '../dndConstants';
 
-
+// Import context and filters component
 import { useSchedule } from '../context/ScheduleContext';
 import SearchFilters from './SearchFilters';
 
-// --- Draggable Course Item Component ---
+// --- Draggable Course Item Component (Styling Adjusted) ---
+// ***** START OF CHANGES in DraggableCourseItem *****
 const DraggableCourseItem = ({ course, handleAddCourseClick, isScheduleLoading }) => {
-  // Get dragPreview from useDrag
-  const [{ isDragging }, drag, dragPreview] = useDrag(() => ({ // <-- Add dragPreview here
+  const [{ isDragging }, drag, dragPreview] = useDrag(() => ({
     type: ItemTypes.COURSE,
     item: { course },
     collect: (monitor) => ({
@@ -43,25 +42,22 @@ const DraggableCourseItem = ({ course, handleAddCourseClick, isScheduleLoading }
     }),
   }), [course]);
 
-  // --- Add useEffect to hide default preview ---
   useEffect(() => {
-    // Connect an empty image to the drag preview
-    // This prevents the browser from generating its own snapshot
     dragPreview(getEmptyImage(), { captureDraggingState: true });
-  }, [dragPreview]); // Dependency array ensures this runs once on mount
-  // --- End useEffect ---
+  }, [dragPreview]);
 
 
   return (
     <ListItem
-      ref={drag} // Apply the drag source ref here
-      // ... (rest of ListItem props and sx remain the same) ...
-      disablePadding
-      divider
+      ref={drag}
+      disablePadding // Keep padding control on ListItemButton
+      divider // Keep the divider between items
       sx={{
         cursor: 'move',
         opacity: isDragging ? 0.5 : 1,
         '&:hover': { bgcolor: 'action.hover' },
+        // Add some vertical padding to the ListItem itself to increase spacing
+        py: 0.5, // Adjusted vertical padding (was implicitly 0)
       }}
       secondaryAction={
          <Tooltip title={`Add ${course.subject} ${course.courseCode} to schedule`}>
@@ -71,7 +67,7 @@ const DraggableCourseItem = ({ course, handleAddCourseClick, isScheduleLoading }
                  aria-label={`add ${course.name}`}
                  onClick={() => handleAddCourseClick(course)}
                  disabled={isScheduleLoading}
-                 sx={{ mr: 1 }}
+                 sx={{ mr: 1 }} // Keep margin
                >
                  <AddCircleOutlineIcon />
                </IconButton>
@@ -79,22 +75,41 @@ const DraggableCourseItem = ({ course, handleAddCourseClick, isScheduleLoading }
          </Tooltip>
       }
     >
-      {/* ... (ListItemButton and ListItemText remain the same) ... */}
-      <ListItemButton dense sx={{ pl: 2, pr: 1, py: 0.5 }}>
+      {/* Adjust padding and text props within ListItemButton/ListItemText */}
+      <ListItemButton dense sx={{ pl: 2, pr: 1, py: 1 }}> {/* Increased vertical padding */}
          <ListItemText
            primary={`${course.subject} ${course.courseCode} - ${course.name}`}
            secondary={`Sec: ${course.section || 'N/A'} | Prof: ${course.professor?.name || 'N/A'} | Days: ${course.days || 'N/A'} | Loc: ${course.location || 'N/A'} | Time: ${course.time?.startTime ? `${formatTime(course.time.startTime)} - ${formatTime(course.time.endTime)}` : 'N/A'}`}
-           secondaryTypographyProps={{ sx: { fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }}
-           primaryTypographyProps={{ sx: { fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 } }}
+           // Increase font sizes
+           primaryTypographyProps={{
+             sx: {
+                fontSize: '0.95rem', // Larger primary font
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                fontWeight: 500,
+                mb: 0.2 // Add a little space below primary text
+             }
+           }}
+           secondaryTypographyProps={{
+             sx: {
+                fontSize: '0.8rem', // Slightly larger secondary font
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                lineHeight: 1.3 // Adjust line height if needed
+             }
+            }}
          />
        </ListItemButton>
     </ListItem>
   );
 };
+// ***** END OF CHANGES in DraggableCourseItem *****
 
 
 /**
- * SearchBar Component (Updated for Draggable Items)
+ * SearchBar Component (Updated for Integrated Results Display)
  */
 const SearchBar = () => {
   const scheduleContext = useSchedule();
@@ -102,38 +117,21 @@ const SearchBar = () => {
   const isScheduleLoading = scheduleContext?.isLoading || false;
   const scheduleError = scheduleContext?.error || null;
 
+  // State for search
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
 
+  // State for filters
   const [filters, setFilters] = useState({ startTime: '', endTime: '', days: [] });
   const [activeFilterCount, setActiveFilterCount] = useState(0);
-
-  const [openResults, setOpenResults] = useState(false);
-  const searchAnchorElRef = useRef(null);
-  const [resultsPopperWidth, setResultsPopperWidth] = useState(0);
-
   const [openFilters, setOpenFilters] = useState(false);
   const filterAnchorElRef = useRef(null);
 
+  // Effect to count active filters
   useEffect(() => {
-    // ... (popper width logic remains the same) ...
-    const updateResultsWidth = () => {
-      if (searchAnchorElRef.current) setResultsPopperWidth(searchAnchorElRef.current.clientWidth);
-    };
-    if (openResults) {
-        updateResultsWidth();
-        window.addEventListener('resize', updateResultsWidth);
-    } else {
-         window.removeEventListener('resize', updateResultsWidth);
-    }
-    return () => window.removeEventListener('resize', updateResultsWidth);
-  }, [openResults]);
-
-  useEffect(() => {
-    // ... (active filter count logic remains the same) ...
       let count = 0;
       if (filters.startTime || filters.endTime) count++;
       if (filters.days && Array.isArray(filters.days) && filters.days.length > 0) count++;
@@ -142,21 +140,27 @@ const SearchBar = () => {
 
 
   const handleInputChange = (event) => {
-    // ... (logic remains the same) ...
-    setQuery(event.target.value);
-    if (event.target.value === '') {
-       setOpenResults(false); setResults([]); setHasSearched(false); setSearchError(null);
+    const newQuery = event.target.value;
+    setQuery(newQuery);
+    if (newQuery.trim() === '') {
+       setResults([]);
+       setHasSearched(false);
+       setSearchError(null);
     }
   };
 
   const handleSearch = useCallback(async (applyFilters = false) => {
-    // ... (API call logic remains the same) ...
     if (applyFilters) setOpenFilters(false);
     if (!query.trim()) {
-      setResults([]); setSearchError(null); setHasSearched(true); setOpenResults(false);
+      setResults([]);
+      setSearchError(null);
+      setHasSearched(true);
       return;
     }
-    setIsSearchLoading(true); setSearchError(null); setResults([]); setHasSearched(true); setOpenResults(true);
+    setIsSearchLoading(true);
+    setSearchError(null);
+    setResults([]);
+    setHasSearched(true);
 
     let apiUrl = `/api/courses/search?query=${encodeURIComponent(query.trim())}`;
     if (filters.startTime) apiUrl += `&startTime=${encodeURIComponent(filters.startTime)}`;
@@ -176,56 +180,44 @@ const SearchBar = () => {
     } catch (err) {
       console.error("Search API call failed:", err);
       setSearchError(err.message || "Failed to fetch search results.");
-      setResults([]); setOpenResults(true);
+      setResults([]);
     } finally {
       setIsSearchLoading(false);
     }
   }, [query, filters]);
 
   const handleKeyPress = useCallback((event) => {
-    // ... (logic remains the same) ...
     if (event.key === 'Enter') {
       handleSearch();
     }
   }, [handleSearch]);
 
   const handleAddCourseClick = (course) => {
-    // ... (logic remains the same, still used by the add button) ...
     addCourse(course);
-    // Maybe close results after adding?
-    // setOpenResults(false);
   };
 
   const handleFilterButtonClick = () => {
-    // ... (logic remains the same) ...
      setOpenFilters((prev) => !prev);
-     setOpenResults(false);
   };
 
   const handleFilterChange = (newFilters) => {
-    // ... (logic remains the same) ...
     setFilters(newFilters);
   };
 
   const handleApplyFilters = () => {
-    // ... (logic remains the same) ...
       handleSearch(true);
   };
 
   const handleResetFilters = () => {
-    // ... (logic remains the same) ...
       setFilters({ startTime: '', endTime: '', days: [] });
       setOpenFilters(false);
+      // Optionally trigger a new search with reset filters if query exists
+      // if (query.trim()) {
+      //     handleSearch(false); // Pass false as we are not applying *new* filters
+      // }
   };
 
-  const handleClickAway = (event) => {
-    // ... (logic remains the same) ...
-     if (openResults &&
-         searchAnchorElRef.current && !searchAnchorElRef.current.contains(event.target) &&
-         filterAnchorElRef.current && !filterAnchorElRef.current.contains(event.target))
-     {
-        setOpenResults(false);
-     }
+  const handleClickAwayFilters = (event) => {
       if (openFilters &&
           filterAnchorElRef.current && !filterAnchorElRef.current.contains(event.target)) {
         setOpenFilters(false);
@@ -235,96 +227,109 @@ const SearchBar = () => {
   const overallLoading = isSearchLoading || isScheduleLoading;
 
   return (
-    <ClickAwayListener onClickAway={handleClickAway}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, position: 'relative' }}>
+    <ClickAwayListener onClickAway={handleClickAwayFilters}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         <Typography variant="h6" component="div"> Course Search </Typography>
+
+        {/* Input and Filter Button Row */}
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-             <div style={{ flexGrow: 1 }} ref={searchAnchorElRef}>
-                <TextField
-                    // ... (TextField props remain the same) ...
-                    label="Search Courses (e.g., COMP 101)"
-                    variant="outlined"
-                    fullWidth
-                    value={query}
-                    onChange={handleInputChange}
-                    onKeyPress={handleKeyPress}
-                    disabled={overallLoading}
-                    InputProps={{
-                        endAdornment: (
-                        <InputAdornment position="end">
-                            <IconButton
-                            aria-label="search courses"
-                            onClick={() => handleSearch()}
-                            edge="end"
-                            disabled={overallLoading || !query.trim()}
-                            >
-                            {isSearchLoading ? <CircularProgress size={24} /> : <SearchIcon />}
-                            </IconButton>
-                        </InputAdornment>
-                        ),
-                    }}
-                />
-             </div>
-            <Box ref={filterAnchorElRef}>
-                <IconButton
-                    // ... (Filter IconButton props remain the same) ...
-                     aria-label="show filters"
+             <TextField
+                label="Search Courses (e.g., COMP 101)"
+                variant="outlined"
+                fullWidth
+                size="small"
+                value={query}
+                onChange={handleInputChange}
+                onKeyPress={handleKeyPress}
+                disabled={overallLoading}
+                InputProps={{
+                    endAdornment: (
+                    <InputAdornment position="end">
+                        <IconButton
+                        aria-label="search courses"
+                        onClick={() => handleSearch()}
+                        edge="end"
+                        disabled={overallLoading || !query.trim()}
+                        >
+                        {isSearchLoading ? <CircularProgress size={20} /> : <SearchIcon />}
+                        </IconButton>
+                    </InputAdornment>
+                    ),
+                }}
+                sx={{ flexGrow: 1 }}
+             />
+             <Box ref={filterAnchorElRef}>
+                <Tooltip title="Filter search results">
+                  <IconButton
+                    aria-label="show filters"
                     onClick={handleFilterButtonClick}
                     color={openFilters ? "primary" : "default"}
-                    sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: '9px' }}
-                >
+                    sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: '7px' }}
+                    disabled={overallLoading}
+                  >
                     <Badge badgeContent={activeFilterCount} color="secondary">
                         <FilterListIcon />
                     </Badge>
-                </IconButton>
-            </Box>
+                  </IconButton>
+                </Tooltip>
+             </Box>
         </Box>
 
-        {/* Results Popper */}
-        <Popper
-          open={openResults}
-          anchorEl={searchAnchorElRef.current}
-          // ... (Popper props remain the same) ...
-          placement="bottom-start"
-          transition
-          disablePortal
-          modifiers={[ { name: 'offset', options: { offset: [0, 4] } }, { name: 'preventOverflow', options: { boundary: 'clippingParents' } }]}
-          style={{ zIndex: 1200 }}
-          sx={{ width: resultsPopperWidth > 0 ? `${resultsPopperWidth}px` : 'auto' }}
-        >
-          {({ TransitionProps }) => (
-            <Fade {...TransitionProps} timeout={350}>
-              <Paper elevation={4} sx={{ mt: 0.5 }} onClick={(e) => e.stopPropagation()}>
-                {/* --- Render Loading/Error/Empty states --- */}
-                {isSearchLoading && <CircularProgress sx={{ display: 'block', margin: '20px auto' }} />}
-                {searchError && !isSearchLoading && <Alert severity="error" sx={{ m: 1, borderRadius: 0 }}>Search Error: {searchError}</Alert>}
-                {scheduleError && !isSearchLoading && <Alert severity="warning" sx={{ m: 1, borderRadius: 0 }}>Schedule Error: {scheduleError}</Alert>}
-                {hasSearched && !isSearchLoading && !searchError && results.length === 0 && <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>No courses found.</Typography>}
+        {/* --- Results Area --- */}
+        {(hasSearched || isSearchLoading) && (
+            // ***** START OF CHANGES in Results Paper *****
+            <Paper elevation={2} sx={{
+                mt: 1,
+                p: 0,
+                 // Adjust height calculation or use a fixed height
+                 // Example: Aiming for roughly 6 larger items (estimate ~70px each) + padding
+                maxHeight: '450px', // Fixed height example - adjust as needed
+                // Or keep calc() but adjust the subtract value:
+                // maxHeight: 'calc(100vh - 360px)', // Allows slightly more height than before
+                minHeight: '150px', // Increased min height
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column'
+            }}>
+            {/* ***** END OF CHANGES in Results Paper ***** */}
 
-                {/* --- Render Draggable Results List --- */}
+                {/* Loading State */}
+                {isSearchLoading && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3, flexGrow: 1 }}>
+                        <CircularProgress />
+                    </Box>
+                )}
+                {/* Error States */}
+                {searchError && !isSearchLoading && ( <Alert severity="error" sx={{ m: 1 }}>Search Error: {searchError}</Alert> )}
+                {scheduleError && !isSearchLoading && ( <Alert severity="warning" sx={{ m: 1 }}>Schedule Error: {scheduleError}</Alert> )}
+                {/* No Results State */}
+                {hasSearched && !isSearchLoading && !searchError && results.length === 0 && (
+                    <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center', flexGrow: 1, mt: 2 }}>
+                        No courses found matching your criteria.
+                    </Typography>
+                )}
+                {/* Results List */}
                 {results.length > 0 && !isSearchLoading && (
-                  <List dense sx={{ maxHeight: 300, overflow: 'auto', p: 0 }}>
+                  // Use dense={false} on List if you want more default spacing (optional)
+                  <List dense={false} sx={{ p: 0 }}>
                     {results.map((course) => (
-                      // Use the new DraggableCourseItem component
                       <DraggableCourseItem
                         key={`${course.subject}-${course.courseCode}-${course.section}`}
                         course={course}
-                        handleAddCourseClick={handleAddCourseClick} // Pass handler for the button
+                        handleAddCourseClick={handleAddCourseClick}
                         isScheduleLoading={isScheduleLoading}
                       />
                     ))}
                   </List>
                 )}
-              </Paper>
-            </Fade>
-          )}
-        </Popper>
+            </Paper>
+        )}
+        {(hasSearched || isSearchLoading) && <Divider sx={{ my: 1 }} />}
 
-        {/* Filter Popper */}
+        {/* --- Filter Popper --- */}
          <Popper
           open={openFilters}
           anchorEl={filterAnchorElRef.current}
-          // ... (Filter Popper props remain the same) ...
           placement="bottom-end"
           transition
           disablePortal
@@ -344,15 +349,13 @@ const SearchBar = () => {
             </Fade>
            )}
         </Popper>
-
       </Box>
     </ClickAwayListener>
   );
 };
 
-// Helper to format time (ensure this is consistent)
+// Helper to format time (no changes needed)
 const formatTime = (seconds) => {
-    // ... (formatTime logic remains the same) ...
     if (typeof seconds !== 'number' || isNaN(seconds)) return 'N/A';
     const totalMinutes = Math.floor(seconds / 60);
     const hours24 = Math.floor(totalMinutes / 60);
@@ -361,6 +364,5 @@ const formatTime = (seconds) => {
     const ampm = hours24 >= 12 ? 'PM' : 'AM';
     return `${hours12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
 };
-
 
 export default SearchBar;
